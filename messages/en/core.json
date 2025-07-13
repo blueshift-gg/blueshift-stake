@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "title": "Blueshift",
+    "description": "Learn how to write your own on-chain programs from the top instructors in the Solana ecosystem.",
+    "keywords": "Solana, Blueshift, learn, qualification, vault, escrow, AMM, native, pinocchio, quantum, SPL token"
+  },
+  "header": {
+    "connect_wallet": "Connect Wallet"
+  },
+  "ui": {
+    "validator": "Validator",
+    "total_stake": "Total Stake",
+    "next_slot": "Next Slot",
+    "apy": "APY",
+    "top_pools": "Top Pools",
+    "stake": "Stake",
+    "unstake": "Unstake",
+    "native": "Native",
+    "liquid": "Liquid (Coming Soon)",
+    "amount": "Amount",
+    "max": "Max",
+    "disclaimer": "By connecting your wallet, you agree to the",
+    "terms": "Terms of Service."
+  },
+  "locales_native_name": {
+    "en": "English",
+    "zh-hant": "繁體中文"
+  }
+}

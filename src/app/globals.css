@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: #0b0e14;
+  --color-primary: #eff1f6;
+  --color-secondary: #ced5e4;
+  --color-tertiary: #adb9d2;
+  --color-mute: #585e6c;
+  --color-background-card: #11141a;
+  --color-background-card-foreground: #171a20;
+  --color-border: #1a1e26;
+  --color-border-active: rgba(173, 185, 210, 0.2);
+  --color-background-primary: rgba(0, 153, 153, 0.08);
+  --color-success: #00e66b;
+  --color-error: #ff285a;
+  --color-brand-primary: #00ffff;
+  --color-brand-secondary: #00e6e6;
+  --color-brand-tertiary: #00b3b3;
+  --font-mono: var(--font-montech);
+  --font-sans: var(--font-funnel-display);
+  --text-3xl: 32px;
+  --container-app: 1500px;
+  --breakpoint-xs: 472px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply w-screen h-auto overflow-x-hidden;
+  background: var(--color-background);
+  font-family: var(--font-funnel-display);
+  color: var(--color-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+.wrapper {
+  @apply max-w-6xl mx-auto w-full px-4 relative;
+  @apply md:px-6;
+  @apply xl:px-0;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  mask-mode: match-source, match-source;
+  mask-repeat: repeat, repeat;
+  mask-clip: content-box, border-box;
+  mask-origin: content-box, border-box;
+  mask-position:
+    0% 0%,
+    0% 0%;
+  mask-size: auto, auto;
+  pointer-events: none;
+}
+
+/* Infinite scroll animation */
+@keyframes infinite-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-400px * 4 - 0.5rem * 4));
+  }
+}
+
+.animate-infinite-scroll {
+  animation: infinite-scroll 40s linear infinite;
+}
+
+.animate-infinite-scroll:hover {
+  animation-play-state: paused;
 }
