@@ -9,7 +9,7 @@ export default function NotFound() {
           4<span className="animate-pulse">0</span>4
         </div>
         <p className="text-secondary font-medium">
-          The page you're looking for doesn't exist
+          The page you&apos;re looking for doesn&apos;t exist
         </p>
       </div>
       <Link href="/">

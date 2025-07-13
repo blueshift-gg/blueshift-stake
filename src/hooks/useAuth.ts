@@ -145,8 +145,6 @@ export function useAuth() {
       }
       const data: AuthResponse = await response.json();
 
-      const decodedJwt = decodeJwt(data.token);
-
       setAuthToken(data.token);
       // Explicitly set signed-in state and clear loading on success
       setAuthState({

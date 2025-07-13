@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Funnel_Display } from "next/font/google";
 import localFont from "next/font/local";
 import "../globals.css";

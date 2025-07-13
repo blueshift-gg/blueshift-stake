@@ -1,10 +1,9 @@
-import { AnimatePresence, anticipate, motion } from "motion/react";
+import { anticipate, motion } from "motion/react";
 import classNames from "classnames";
 
 export default function LogoGlyph({
   width = 24,
   height = 20,
-  showText = true,
   isScrolled = false,
 }) {
   function getAnimation(delay: number) {

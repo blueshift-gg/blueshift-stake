@@ -1,6 +1,5 @@
 "use client";
 import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
-import DecryptedText from "@/components/HeadingReveal/DecryptText";
 import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
 import { useEffect, useState } from "react";

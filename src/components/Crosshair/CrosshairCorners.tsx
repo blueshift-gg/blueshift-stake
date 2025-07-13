@@ -54,7 +54,7 @@ export default function CrosshairCorners({
           "--spacing-bottom": spacingBottom + "px",
           "--move": moveDistance + "px",
           "--stroke-width": strokeWidth + "px",
-        } as any
+        } as React.CSSProperties
       }
     >
       {/* Top Left */}

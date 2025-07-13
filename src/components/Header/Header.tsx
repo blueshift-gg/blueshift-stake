@@ -1,7 +1,6 @@
 "use client";
 
 import classNames from "classnames";
-import Icon from "../Icon/Icon";
 import { AnimatePresence, anticipate, motion } from "motion/react";
 import { useState, useRef, RefObject } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -16,7 +15,6 @@ import Button from "@/components/Button/Button";
 import LogoGlyph from "@/components/Logo/LogoGlyph";
 
 export default function HeaderContent() {
-  const [isOpen, setIsOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const pathname = usePathname();
   const t = useTranslations();
