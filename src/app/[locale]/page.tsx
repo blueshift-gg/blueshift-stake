@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import NetworkStats from "@/app/content/NetworkStats/NetworkStats";
 import TopPools from "../content/NetworkStats/TopPools";
 import StakeWidget from "../content/Widget/StakeWidget";
