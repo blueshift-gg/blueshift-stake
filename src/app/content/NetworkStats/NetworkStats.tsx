@@ -5,9 +5,37 @@ import { shortenString } from "@/utils/utils";
 import classNames from "classnames";
 import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
+import { useStakingStore } from "@/stores/stakingStore";
+import { ReactNode, useEffect } from "react";
+import { formatSol } from "@/utils/solana";
+import { VALIDATOR_VOTE_ACCOUNT } from "@/utils/solana";
+import Image from "next/image";
 
 export default function NetworkStats() {
   const t = useTranslations();
+  const { networkStats, validatorStats, fetchValidatorStats } = useStakingStore();
+
+  // Fetch network and validator stats on component mount
+  useEffect(() => {
+    fetchValidatorStats();
+    // Update every 30 seconds
+    const interval = setInterval(() => {
+      fetchValidatorStats();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchValidatorStats]);
+
+  const validatorVoteAccount = VALIDATOR_VOTE_ACCOUNT.toBase58();
+  const validatorUrl = process.env.NEXT_PUBLIC_VALIDATOR_URL;
+
+  // Calculate slots remaining until next leader slot
+  const getNextLeaderDisplay = () => {
+    if (!validatorStats.nextLeaderSlot) return "N/A";
+    const currentSlot = networkStats.currentEpoch * 432000; // Approximate slots per epoch
+    const slotsRemaining = validatorStats.nextLeaderSlot - currentSlot;
+    return slotsRemaining > 0 ? `${slotsRemaining} slots` : "Soon";
+  };
+
   return (
     <motion.div className="w-full border-y border-border">
       <div className="wrapper !px-0">
@@ -16,58 +44,77 @@ export default function NetworkStats() {
           <StatCard title={t("ui.validator")}>
             <div className="absolute w-full xl:w-[calc(100%+24px)] h-[calc(100%+1px)] left-0 -top-[1px] overflow-hidden pointer-events-none">
               <div className="absolute w-[1350px] h-[500px] mix-blend-color-dodge top-1/3 -translate-y-3/5 left-1/2 -translate-x-1/2">
-                <img
+                <Image
                   src="/graphics/validator-eclipse.webp"
+                  alt="Validator eclipse effect"
+                  width={1350}
+                  height={500}
                   className="max-w-none"
-                ></img>
+                />
               </div>
               <div className="w-full h-full mix-blend-plus-lighter [mask-image:linear-gradient(270deg,rgba(217,217,217,0)_-0.18%,rgba(115,115,115,0.2)_99.82%)]">
-                <img
+                <Image
                   src="/graphics/validator-bg.webp"
                   alt="Validator BG"
-                  className="object-cover w-full h-full"
+                  fill
+                  className="object-cover"
                 />
               </div>
             </div>
-            <a
-              className="flex items-center gap-x-2.5 group/link"
-              href={process.env.NEXT_PUBLIC_VALIDATOR_URL}
-            >
-              <img
-                src="/icons/blueshift.svg"
-                alt="Blueshift Icon"
-                className="w-6 h-6 relative z-20"
-              ></img>
-              <div>
-                {shortenString(
-                  "shft7Fry1js37Hm9wq4dfwcZSp2DyKszeWMvEpjYCQ1",
-                  8
-                )}
+            {validatorUrl ? (
+              <a
+                className="flex items-center gap-x-2.5 group/link"
+                href={validatorUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Image
+                  src="/icons/blueshift.svg"
+                  alt="Blueshift Icon"
+                  width={24}
+                  height={24}
+                  className="relative z-20"
+                />
+                <div>{shortenString(validatorVoteAccount, 8)}</div>
+                <div className="group-hover/link:text-primary focus:outline-none h-4 w-4 text-tertiary/50 hover:text-primary transition">
+                  <Icon name="ExternalLink" />
+                </div>
+              </a>
+            ) : (
+              <div className="flex items-center gap-x-2.5">
+                <Image
+                  src="/icons/blueshift.svg"
+                  alt="Blueshift Icon"
+                  width={24}
+                  height={24}
+                  className="relative z-20"
+                />
+                <div>{shortenString(validatorVoteAccount, 8)}</div>
               </div>
-              <div className="group-hover/link:text-primary focus:outline-none h-4 w-4 text-tertiary/50 hover:text-primary transition">
-                <Icon name="ExternalLink" />
-              </div>
-            </a>
+            )}
           </StatCard>
-          <StatCard title={t("ui.total_stake")}>
-            <span>27,576.51</span>
+          <StatCard title="Total Staked">
+            <span>{formatSol(validatorStats.totalStake, 0)}</span>
             <Badge
               color="rgb(153, 69, 255)"
               value="SOL"
               icon="/icons/sol.svg"
             />
           </StatCard>
-          <StatCard title={t("ui.next_slot")}>
-            <span>21 slots</span>
+          <StatCard title="Next Leader Slot">
+            <span>{getNextLeaderDisplay()}</span>
             <Badge
               className="hidden sm:flex"
               color="rgb(173, 185, 210)"
-              value="353,941,471"
+              value={`Slot ${validatorStats.nextLeaderSlot || "TBD"}`}
             />
           </StatCard>
-          <StatCard title={t("ui.apy")}>
+          <StatCard title="APY">
             <span>6.1%</span>
-            <Badge color="rgb(0, 230, 107)" value="0.1%" />
+            <Badge
+              color="rgb(0, 230, 107)"
+              value="0.1%"
+            />
           </StatCard>
         </div>
       </div>
@@ -81,7 +128,7 @@ const StatCard = ({
   className,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) => {
   return (

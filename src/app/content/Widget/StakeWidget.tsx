@@ -7,21 +7,131 @@ import { useTranslations } from "next-intl";
 import Button from "@/components/Button/Button";
 import Icon from "@/components/Icon/Icon";
 import Badge from "@/components/Badge/Badge";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useStakingStore } from "@/stores/stakingStore";
+import { stakingService } from "@/services/stakingService";
+import { formatSol, isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
+import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
+import Image from "next/image";
 
 export default function StakeWidget() {
   const [selectedTab, setSelectedTab] = useState<"stake" | "unstake">("stake");
   const [amount, setAmount] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+  }>({ type: null, message: '' });
+
   const t = useTranslations();
+  const { publicKey, signTransaction } = useWallet();
+  const {
+    isConnected,
+    balance,
+    stakingStats,
+    isLoading,
+    refreshData
+  } = useStakingStore();
 
-  const solPrice = 165.44;
+  const solPrice = 165.44; // In production, fetch from price API
+  const minStakeAmount = getMinimumStakeAmount();
 
-  // Fake Loader for now
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Handle max button click
+  const handleMaxClick = () => {
+    if (selectedTab === "stake") {
+      // Leave some SOL for transaction fees
+      const maxStakeAmount = Math.max(0, balance - 0.01);
+      setAmount(maxStakeAmount.toString());
+    } else {
+      // For unstaking, show total staked amount
+      setAmount(stakingStats.totalStaked.toString());
+    }
+  };
+
+  // Handle amount input change
+  const handleAmountChange = (value: string) => {
+    // Only allow numbers and decimal point
+    if (/^\d*\.?\d*$/.test(value)) {
+      setAmount(value);
+    }
+  };
+
+  // Handle stake operation
+  const handleStake = async () => {
+    if (!publicKey || !signTransaction || !isValidSolAmount(amount)) return;
+
+    const stakeAmount = parseFloat(amount);
+    if (stakeAmount < minStakeAmount) {
+      setTransactionStatus({
+        type: 'error',
+        message: `Minimum stake amount is ${minStakeAmount} SOL`
+      });
+      return;
+    }
+
+    if (stakeAmount > balance - 0.01) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Insufficient balance (leave some SOL for fees)'
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setTransactionStatus({ type: null, message: '' });
+
+    try {
+      const result = await stakingService.createStake(
+        publicKey,
+        stakeAmount,
+        signTransaction
+      );
+
+      if (result.success) {
+        setTransactionStatus({
+          type: 'success',
+          message: `Successfully staked ${stakeAmount} SOL!`
+        });
+        setAmount('');
+        // Refresh data after successful transaction
+        setTimeout(() => refreshData(), 2000);
+      } else {
+        setTransactionStatus({
+          type: 'error',
+          message: result.error || 'Transaction failed'
+        });
+      }
+    } catch (error) {
+      setTransactionStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle unstake operation
+  const handleUnstake = async () => {
+    throw Error("Not implemented");
+  };
+
+  const handleAction = selectedTab === "stake" ? handleStake : handleUnstake;
+  const canPerformAction = isConnected &&
+    isValidSolAmount(amount) &&
+    !isProcessing &&
+    !isLoading &&
+    (selectedTab === "stake" ? parseFloat(amount) <= balance - 0.01 : parseFloat(amount) <= stakingStats.totalStaked);
+
+  // Clear transaction status after 5 seconds
   useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 3000);
-  }, []);
+    if (transactionStatus.type) {
+      const timer = setTimeout(() => {
+        setTransactionStatus({ type: null, message: '' });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [transactionStatus]);
 
   return (
     <div className="wrapper flex items-center justify-center w-full">
@@ -86,7 +196,7 @@ export default function StakeWidget() {
                   {t("ui.native")}
                 </span>
               </button>
-              <button className="w-full py-1.5 rounded-lg">
+              <button className="w-full py-1.5 rounded-lg opacity-50 cursor-not-allowed">
                 <span className="text-sm font-mono leading-[100%] text-mute">
                   {t("ui.liquid")}
                 </span>
@@ -97,30 +207,37 @@ export default function StakeWidget() {
                 <span className="font-medium">{t("ui.amount")}</span>
                 <div className="flex items-center gap-x-1.5 text-tertiary">
                   <Icon name="WalletSmall" />
-                  <span className="text-sm font-mono">24.3 SOL</span>
+                  <span className="text-sm font-mono">
+                    {selectedTab === "stake"
+                      ? `${formatSol(balance)} SOL`
+                      : `${formatSol(stakingStats.totalStaked)} SOL staked`
+                    }
+                  </span>
                 </div>
               </div>
               <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
                 <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
-                  <img
+                  <Image
                     src="/icons/sol.svg"
                     alt="Solana Icon"
-                    className="w-6 h-6"
-                  ></img>
+                    width={24}
+                    height={24}
+                  />
                   <span className="leading-[100%]">SOL</span>
                 </div>
                 <input
                   className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                   placeholder="0.00"
-                  disabled={isLoading}
+                  disabled={!isConnected || isLoading}
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                ></input>
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                />
                 <Button
                   size="xs"
                   label={t("ui.max")}
-                  disabled={isLoading}
-                ></Button>
+                  disabled={!isConnected || isLoading}
+                  onClick={handleMaxClick}
+                />
               </div>
               <div className="h-[24px] w-full">
                 {amount && (parseFloat(amount) || 0) > 0 && (
@@ -136,7 +253,7 @@ export default function StakeWidget() {
                       color="rgb(173,185,210)"
                       className="font-mono ml-auto"
                       value={`~$${((parseFloat(amount) || 0) * solPrice).toFixed(2)} USD`}
-                    ></Badge>
+                    />
                   </motion.div>
                 )}
               </div>
@@ -144,13 +261,35 @@ export default function StakeWidget() {
           </div>
 
           <div className="flex flex-col gap-y-5 items-center justify-center">
-            <Button
-              icon="Wallet"
-              className="w-full relative"
-              label="Connect Wallet"
-              disabled={isLoading}
-              isLoading={isLoading}
-            />
+            {/* Transaction Status */}
+            {transactionStatus.type && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={classNames(
+                  "w-full p-3 rounded-lg text-sm font-mono text-center",
+                  transactionStatus.type === 'success'
+                    ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                    : "bg-red-500/20 text-red-400 border border-red-500/30"
+                )}
+              >
+                {transactionStatus.message}
+              </motion.div>
+            )}
+
+            {!isConnected ? (
+              <WalletMultiButton isLoading={isLoading} />
+            ) : (
+              <Button
+                icon={selectedTab === "stake" ? "Target" : "ArrowLeft"}
+                className="w-full relative"
+                label={selectedTab === "stake" ? "Stake SOL" : "Unstake SOL"}
+                disabled={!canPerformAction}
+                isLoading={isProcessing}
+                onClick={handleAction}
+              />
+            )}
+
             <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
               <span className="text-secondary">{t("ui.disclaimer")}</span>
               <span className="text-brand-secondary"> {t("ui.terms")}</span>
