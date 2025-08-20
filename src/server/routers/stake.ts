@@ -1,10 +1,11 @@
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, GetProgramAccountsResponse, PublicKey, StakeProgram } from "@solana/web3.js";
 import { z } from "zod";
+import { getMetaDecoder, getStakeStateAccountDecoder } from "@solana-program/stake"
 
-  const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, {
-    commitment: "confirmed",
-  });
+const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, {
+  commitment: "confirmed",
+});
 
 export const stakeRouter = createTRPCRouter({
   total: publicProcedure
@@ -26,11 +27,13 @@ export const stakeRouter = createTRPCRouter({
   pools: publicProcedure
     .input(z.void())
     .output(z.array(z.object({
-      pubkey: z.string(),
-      amount: z.number(),
+      address: z.string(),
+      amountStaked: z.number(),
+      stakingAuthority: z.string(),
+      status: z.string()
     })))
     .query(async () => {
-      const stakeAccounts = await connection.getProgramAccounts(
+      const stakeAccounts: GetProgramAccountsResponse = await connection.getProgramAccounts(
         new PublicKey("Stake11111111111111111111111111111111111111"), {
           commitment: "confirmed",
           filters: [{
@@ -40,14 +43,19 @@ export const stakeRouter = createTRPCRouter({
             }
           }]
         }
-      );
+      )
+
+      const metaDecoder = getMetaDecoder()
+      const statusDecoder = getStakeStateAccountDecoder()
 
       const stakeAccountsInfo = stakeAccounts.map((account) => {
         return {
-          pubkey: account.pubkey.toString(),
-          amount: account.account.lamports
-        }
-      })
+          address: account.pubkey.toString(),
+          amountStaked: account.account.lamports,
+          stakingAuthority: metaDecoder.decode(account.account.data, 4).authorized.staker,
+          status: statusDecoder.decode(account.account.data).state.__kind
+        };
+      }).sort((poolA, poolB) => poolA.amountStaked - poolB.amountStaked)
 
       return stakeAccountsInfo
     }),
