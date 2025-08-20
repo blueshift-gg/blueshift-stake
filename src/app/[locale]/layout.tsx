@@ -8,6 +8,7 @@ import { getTranslations } from "next-intl/server";
 import Header from "@/components/Header/Header";
 import WalletProvider from "@/contexts/WalletProvider";
 import Footer from "@/components/Footer/Footer";
+import { TRPCProvider } from "@/components/Providers/TRPCProvider";
 
 const FunnelDisplay = Funnel_Display({
   subsets: ["latin"],
@@ -80,13 +81,15 @@ export default async function RootLayout({
     <html lang={locale}>
       <NextIntlClientProvider>
         <WalletProvider>
-          <body
-            className={`${FunnelDisplay.variable} ${MontechV2.variable} antialiased`}
-          >
-            <Header />
-            {children}
-            <Footer />
-          </body>
+          <TRPCProvider>
+            <body
+              className={`${FunnelDisplay.variable} ${MontechV2.variable} antialiased`}
+            >
+              <Header />
+              {children}
+              <Footer />
+            </body>
+          </TRPCProvider>
         </WalletProvider>
       </NextIntlClientProvider>
     </html>
