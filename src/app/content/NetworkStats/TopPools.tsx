@@ -8,6 +8,7 @@ import Icon from "@/components/Icon/Icon";
 import DecryptedText from "@/components/HeadingReveal/DecryptText";
 import { useState } from "react";
 import { anticipate, motion } from "motion/react";
+import { trpc } from "@/utils/trpc";
 
 export default function TopPools() {
   const t = useTranslations();
@@ -21,46 +22,94 @@ export default function TopPools() {
   );
 }
 
+type PoolType = {
+  stakingAuthority: string | null;
+  amountStaked: number;
+  name?: string;
+  icon?: string | null;
+  color: string;
+}
+
+
 const PoolCarousel = () => {
   const [hoveredPool, setHoveredPool] = useState<string | null>(null);
+
+  const { data: allPools, isLoading, isError } = trpc.stake.pools.useQuery();
+
   // Need a way to map icons and colours up when API is hooked up
-  const pools = [
+  const knownPools: PoolType[] = [
     {
       name: "Solana Foundation",
       icon: "/icons/solana-foundation.svg",
-      amountStaked: 24575.22,
+      amountStaked: 0,
       color: "rgb(153, 69, 255)",
-      address: "mpa4abUkjQoAvPzREkh5Mo75hZhPFQ2FSH6w7dWKuQ5",
+      stakingAuthority: "mpa4abUkjQoAvPzREkh5Mo75hZhPFQ2FSH6w7dWKuQ5",
     },
     {
       name: "AeroSOL",
       icon: "/icons/aerosol.svg",
-      amountStaked: 14575.22,
+      amountStaked: 0,
       color: "rgb(136, 153, 255)",
-      address: "AKJt3m2xJ6ANda9adBGqb5BMrheKJSwxyCfYkLuZNmjn",
+      stakingAuthority: "AKJt3m2xJ6ANda9adBGqb5BMrheKJSwxyCfYkLuZNmjn",
     },
     {
       name: "Jito",
       icon: "/icons/jito.svg",
-      amountStaked: 408.22,
+      amountStaked: 0,
       color: "rgb(255, 255, 255)",
-      address: "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
+      stakingAuthority: "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
     },
     {
       name: "BlazeStake",
       icon: "/icons/blazestake.svg",
-      amountStaked: 105.27,
+      amountStaked: 0,
       color: "rgb(0, 255, 163)",
-      address: "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2",
+      stakingAuthority: "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2",
     },
+    {
+      name: "Other",
+      icon: null,
+      amountStaked: 0,
+      color: "rgb(255, 255, 255)",
+      stakingAuthority: null
+    }
   ];
 
-  const duplicatedPools = [...pools, ...pools];
+  const allPoolsStakingAuthorities = allPools?.map((pool) => pool.stakingAuthority) ?? []
+  const knownPoolStakingAuthorities = knownPools.map((pool) => pool.stakingAuthority)
+
+  let updatedPools: PoolType[];
+
+  updatedPools = knownPools.map((pool) => {
+    if (pool.stakingAuthority && allPoolsStakingAuthorities.includes(pool.stakingAuthority)) {
+      return  {
+        ...pool,
+        amountStaked: pool.amountStaked += (allPools?.filter((newPool) => newPool.stakingAuthority === pool.stakingAuthority)[0].amountStaked ?? 0),
+      }
+    } else {
+      return {
+        ...pool
+      }
+    }
+  })
+
+  allPools?.forEach((pool) => {
+    if (!knownPoolStakingAuthorities.includes(pool.stakingAuthority)) {
+      updatedPools.filter((pool) => pool.name === "Other")[0].amountStaked += pool.amountStaked
+    }
+  })
+
+  updatedPools = Array.prototype.concat(
+    updatedPools.filter((pool) => pool.name !== "Other").sort((a, b) => a.amountStaked - b.amountStaked).reverse(),
+    updatedPools.filter((pool) => pool.name === "Other")
+  );
+
+  const duplicatedPools = [...updatedPools, ...updatedPools]
 
   return (
     <div className="col-span-1 xl:col-span-6 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent)]">
       <div className="flex items-center gap-x-2 w-full animate-infinite-scroll">
-        {duplicatedPools.map((pool, index) => (
+        {duplicatedPools?.map((pool, index) => (
           <motion.a
             initial={{ opacity: 0, scale: 0.99 }}
             animate={{
@@ -71,10 +120,10 @@ const PoolCarousel = () => {
               delay: index * 0.15,
               ease: anticipate,
             }}
-            onMouseEnter={() => setHoveredPool(pool.address)}
+            onMouseEnter={() => setHoveredPool(pool.stakingAuthority)}
             onMouseLeave={() => setHoveredPool(null)}
             key={`${pool.name}-${index}`}
-            href={`https://solscan.io/account/${pool.address}`}
+            href={`https://solscan.io/account/${pool.stakingAuthority}`}
             target="_blank"
             className="cursor-pointer relative group/pool w-[400px] bg-background hover:bg-background-card/50 border border-border pr-4 py-2 pl-2 flex items-start justify-between flex-shrink-0"
           >
@@ -85,7 +134,7 @@ const PoolCarousel = () => {
               corners={["bottom-right"]}
             />
             <div className="flex items-center gap-x-2.5">
-              <div
+              { pool.icon ? <div
                 className="p-2 relative flex items-center justify-center"
                 style={{
                   border: `1px solid ${rgbToRgba(pool.color, 0.15)}`,
@@ -99,21 +148,21 @@ const PoolCarousel = () => {
                   size={4}
                   strokeWidth={1}
                 />
-                <img src={pool.icon} alt={pool.name} className="w-8" />
-              </div>
+                 <img src={pool.icon} alt={pool.name} className="w-8" />
+              </div>  : null}
               <div className="flex flex-col">
                 <span className="font-medium text-primary">{pool.name}</span>
                 <span className="font-mono text-sm text-tertiary flex items-center gap-x-1.5">
-                  <DecryptedText
-                    isHovering={hoveredPool === pool.address}
-                    text={shortenString(pool.address, 10)}
-                  />
+                  { pool.stakingAuthority ? <DecryptedText
+                    isHovering={hoveredPool === pool.stakingAuthority}
+                    text={shortenString(pool.stakingAuthority, 10)}
+                  /> : null }
                   <Icon name="ExternalLink" />
                 </span>
               </div>
             </div>
             <span className="font-mono text-primary text-lg">
-              {pool.amountStaked} SOL
+              { Math.round(pool.amountStaked / 1000000 * 100) / 100 } SOL
             </span>
           </motion.a>
         ))}
