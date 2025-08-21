@@ -130,8 +130,7 @@ const PoolCarousel = () => {
   return (
     <div className="col-span-1 xl:col-span-6 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent)]">
       <div className="flex items-center gap-x-2 w-full animate-infinite-scroll">
-        {duplicatedPools?.map((pool, index) => (
-          <motion.a
+        {duplicatedPools?.map((pool, index) => pool.amountStaked > 10 ? <motion.a
             initial={{ opacity: 0, scale: 0.99 }}
             animate={{
               opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
@@ -185,8 +184,8 @@ const PoolCarousel = () => {
             <span className="font-mono text-primary text-lg">
               { Math.round(pool.amountStaked * 100) / 100 } SOL
             </span>
-          </motion.a>
-        ))}
+          </motion.a> : null
+        )}
       </div>
     </div>
   );
