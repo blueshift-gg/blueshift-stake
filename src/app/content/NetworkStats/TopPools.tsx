@@ -67,6 +67,27 @@ const PoolCarousel = () => {
       stakingAuthority: "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2",
     },
     {
+      name: "JPool",
+      icon: "/icons/jpool.svg",
+      amountStaked: 0,
+      color: "rgb(0, 255, 163)",
+      stakingAuthority: "CtMyWsrUtAwXWiGr9WjHT5fC3p3fgV8cyGpLTo2LJzG1",
+    },
+    {
+      name: "The Vault",
+      icon: "/icons/thevault.svg",
+      amountStaked: 0,
+      color: "rgb(0, 255, 163)",
+      stakingAuthority: "Fu9BYC6tWBo1KMKaP3CFoKfRhqv9akmy3DuYwnCyWiyC",
+    },
+    {
+      name: "Double Zero",
+      icon: "icons/doublezero.ico",
+      amountStaked: 0,
+      color: "rgb(0, 255, 163)",
+      stakingAuthority: "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi"
+    },
+    {
       name: "Other",
       icon: null,
       amountStaked: 0,
