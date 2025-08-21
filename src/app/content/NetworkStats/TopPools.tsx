@@ -162,7 +162,7 @@ const PoolCarousel = () => {
               </div>
             </div>
             <span className="font-mono text-primary text-lg">
-              { Math.round(pool.amountStaked / 1000000 * 100) / 100 } SOL
+              { Math.round(pool.amountStaked * 100) / 100 } SOL
             </span>
           </motion.a>
         ))}

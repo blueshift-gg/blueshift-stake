@@ -1,7 +1,7 @@
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { Connection, GetProgramAccountsResponse, PublicKey, StakeProgram } from "@solana/web3.js";
 import { z } from "zod";
-import { getMetaDecoder, getStakeStateAccountDecoder } from "@solana-program/stake"
+import { getMetaDecoder, getStakeStateAccountDecoder, getStakeDecoder } from "@solana-program/stake"
 
 const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, {
   commitment: "confirmed",
@@ -47,16 +47,25 @@ export const stakeRouter = createTRPCRouter({
 
       const metaDecoder = getMetaDecoder()
       const statusDecoder = getStakeStateAccountDecoder()
+      const stakeDecoder = getStakeDecoder()
 
       const stakeAccountsInfo = stakeAccounts.map((account) => {
         return {
           address: account.pubkey.toString(),
-          amountStaked: account.account.lamports,
+          amountStaked: Number(stakeDecoder.decode(account.account.data, 124).delegation.stake) / 1000000000,
           stakingAuthority: metaDecoder.decode(account.account.data, 4).authorized.staker,
-          status: statusDecoder.decode(account.account.data).state.__kind
-        };
-      }).sort((poolA, poolB) => poolA.amountStaked - poolB.amountStaked)
+          status: statusDecoder.decode(account.account.data).state.__kind,
 
+        };
+      }).sort((poolA, poolB) =>  { if(poolA.amountStaked > poolB.amountStaked) {
+          return 1;
+        } else if (poolA.amountStaked < poolB.amountStaked){
+          return -1;
+        } else {
+          return 0;
+        }}).reverse()
+
+      // console.log(stakeAccountsInfo);
       return stakeAccountsInfo
     }),
 });
