@@ -1,5 +1,5 @@
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { Connection, GetProgramAccountsResponse, PublicKey, StakeProgram } from "@solana/web3.js";
+import { Connection, GetProgramAccountsResponse, LAMPORTS_PER_SOL, PublicKey, StakeProgram } from "@solana/web3.js";
 import { z } from "zod";
 import { getMetaDecoder, getStakeStateAccountDecoder, getStakeDecoder } from "@solana-program/stake"
 
@@ -52,7 +52,7 @@ export const stakeRouter = createTRPCRouter({
       const stakeAccountsInfo = stakeAccounts.map((account) => {
         return {
           address: account.pubkey.toString(),
-          amountStaked: Number(stakeDecoder.decode(account.account.data, 124).delegation.stake) / 1000000000,
+          amountStaked: Number(stakeDecoder.decode(account.account.data, 124).delegation.stake) / LAMPORTS_PER_SOL,
           stakingAuthority: metaDecoder.decode(account.account.data, 4).authorized.staker,
           status: statusDecoder.decode(account.account.data).state.__kind,
 
