@@ -88,7 +88,7 @@ const PoolCarousel = () => {
       stakingAuthority: "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi"
     },
     {
-      name: "Other",
+      name: "Others",
       icon: null,
       amountStaked: 0,
       color: "rgb(255, 255, 255)",
