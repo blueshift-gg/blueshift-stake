@@ -116,13 +116,13 @@ const PoolCarousel = () => {
 
   allPools?.forEach((pool) => {
     if (!knownPoolStakingAuthorities.includes(pool.stakingAuthority)) {
-      updatedPools.filter((pool) => pool.name === "Other")[0].amountStaked += pool.amountStaked
+      updatedPools.filter((pool) => pool.name === "Others")[0].amountStaked += pool.amountStaked
     }
   })
 
   updatedPools = Array.prototype.concat(
-    updatedPools.filter((pool) => pool.name !== "Other").sort((a, b) => a.amountStaked - b.amountStaked).reverse(),
-    updatedPools.filter((pool) => pool.name === "Other")
+    updatedPools.filter((pool) => pool.name !== "Others").sort((a, b) => a.amountStaked - b.amountStaked).reverse(),
+    updatedPools.filter((pool) => pool.name === "Others")
   );
 
   const duplicatedPools = [...updatedPools, ...updatedPools]
@@ -182,7 +182,9 @@ const PoolCarousel = () => {
               </div>
             </div>
             <span className="font-mono text-primary text-lg">
-              { Math.round(pool.amountStaked * 100) / 100 } SOL
+              { new Intl.NumberFormat("en-US", {
+                maximumFractionDigits: 2
+              }).format(pool.amountStaked) } SOL
             </span>
           </motion.a> : null
         )}
