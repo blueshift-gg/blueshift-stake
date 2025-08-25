@@ -82,7 +82,7 @@ const PoolCarousel = () => {
     },
     {
       name: "Double Zero",
-      icon: "icons/doublezero.ico",
+      icon: "icons/doublezero.svg",
       amountStaked: 0,
       color: "rgb(0, 255, 163)",
       stakingAuthority: "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi"
