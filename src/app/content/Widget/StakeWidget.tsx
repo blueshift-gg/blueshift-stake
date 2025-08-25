@@ -15,7 +15,7 @@ import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import Image from "next/image";
 
 export default function StakeWidget() {
-  const [selectedTab, setSelectedTab] = useState<"stake" | "unstake">("stake");
+  const [selectedTab, setSelectedTab] = useState<"stake" | "manage">("stake");
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<{
@@ -116,7 +116,220 @@ export default function StakeWidget() {
     throw Error("Not implemented");
   };
 
-  const handleAction = selectedTab === "stake" ? handleStake : handleUnstake;
+  const StakeForm = () => {
+    return (
+      <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
+        <div className="flex flex-col gap-y-5">
+          <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
+            <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
+              <span className="text-sm font-mono leading-[100%] text-primary">
+                {t("ui.native")}
+              </span>
+            </button>
+            <button className="w-full py-1.5 rounded-lg opacity-50 cursor-not-allowed">
+              <span className="text-sm font-mono leading-[100%] text-mute">
+                {t("ui.liquid")}
+              </span>
+            </button>
+          </div>
+          <div className="flex flex-col gap-y-1">
+            <div className="w-full flex items-center justify-between px-1.5">
+              <span className="font-medium">{t("ui.amount")}</span>
+              <div className="flex items-center gap-x-1.5 text-tertiary">
+                <Icon name="WalletSmall" />
+                <span className="text-sm font-mono">
+                  {`${formatSol(balance)} SOL`}
+                </span>
+              </div>
+            </div>
+            <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
+              <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
+                <Image
+                  src="/icons/sol.svg"
+                  alt="Solana Icon"
+                  width={24}
+                  height={24}
+                />
+                <span className="leading-[100%]">SOL</span>
+              </div>
+              <input
+                className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
+                placeholder="0.00"
+                disabled={!isConnected || isLoading}
+                value={amount}
+                onChange={(e) => handleAmountChange(e.target.value)}
+              />
+              <Button
+                size="xs"
+                label={t("ui.max")}
+                disabled={!isConnected || isLoading}
+                onClick={handleMaxClick}
+              />
+            </div>
+            <div className="h-[24px] w-full">
+              {amount && (parseFloat(amount) || 0) > 0 && (
+                <motion.div
+                  className="w-full flex"
+                  initial={{ opacity: 0 }}
+                  animate={{
+                    opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
+                  }}
+                  transition={{ duration: 0.5, ease: anticipate }}
+                >
+                  <Badge
+                    color="rgb(173,185,210)"
+                    className="font-mono ml-auto"
+                    value={`~$${((parseFloat(amount) || 0) * solPrice).toFixed(2)} USD`}
+                  />
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-y-5 items-center justify-center">
+          {/* Transaction Status */}
+          {transactionStatus.type && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={classNames(
+                "w-full p-3 rounded-lg text-sm font-mono text-center",
+                transactionStatus.type === 'success'
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-red-500/20 text-red-400 border border-red-500/30"
+              )}
+            >
+              {transactionStatus.message}
+            </motion.div>
+          )}
+          {!isConnected ? (
+            <WalletMultiButton isLoading={isLoading} />
+          ) : (
+            <Button
+              icon={"Target"}
+              className="w-full relative"
+              label={"Stake SOL"}
+              disabled={!canPerformAction}
+              isLoading={isProcessing}
+              onClick={handleStake}
+            />
+          )}
+          <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
+            <span className="text-secondary">{t("ui.disclaimer")}</span>
+            <span className="text-brand-secondary"> {t("ui.terms")}</span>
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  const ManageForm = () => {
+    return (
+        <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
+        <div className="flex flex-col gap-y-5">
+          <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
+            <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
+              <span className="text-sm font-mono leading-[100%] text-primary">
+                {t("ui.native")}
+              </span>
+            </button>
+            <button className="w-full py-1.5 rounded-lg opacity-50 cursor-not-allowed">
+              <span className="text-sm font-mono leading-[100%] text-mute">
+                {t("ui.liquid")}
+              </span>
+            </button>
+          </div>
+          <div className="flex flex-col gap-y-1">
+            <div className="w-full flex items-center justify-between px-1.5">
+              <span className="font-medium">{t("ui.amount")}</span>
+              <div className="flex items-center gap-x-1.5 text-tertiary">
+                <Icon name="WalletSmall" />
+                <span className="text-sm font-mono">
+                  {`${formatSol(stakingStats.totalStaked)} SOL staked`}
+                </span>
+              </div>
+            </div>
+            <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
+              <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
+                <Image
+                  src="/icons/sol.svg"
+                  alt="Solana Icon"
+                  width={24}
+                  height={24}
+                />
+                <span className="leading-[100%]">SOL</span>
+              </div>
+              <input
+                className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
+                placeholder="0.00"
+                disabled={!isConnected || isLoading}
+                value={amount}
+                onChange={(e) => handleAmountChange(e.target.value)}
+              />
+              <Button
+                size="xs"
+                label={t("ui.max")}
+                disabled={!isConnected || isLoading}
+                onClick={handleMaxClick}
+              />
+            </div>
+            <div className="h-[24px] w-full">
+              {amount && (parseFloat(amount) || 0) > 0 && (
+                <motion.div
+                  className="w-full flex"
+                  initial={{ opacity: 0 }}
+                  animate={{
+                    opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
+                  }}
+                  transition={{ duration: 0.5, ease: anticipate }}
+                >
+                  <Badge
+                    color="rgb(173,185,210)"
+                    className="font-mono ml-auto"
+                    value={`~$${((parseFloat(amount) || 0) * solPrice).toFixed(2)} USD`}
+                  />
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-y-5 items-center justify-center">
+          {/* Transaction Status */}
+          {transactionStatus.type && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={classNames(
+                "w-full p-3 rounded-lg text-sm font-mono text-center",
+                transactionStatus.type === 'success'
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-red-500/20 text-red-400 border border-red-500/30"
+              )}
+            >
+              {transactionStatus.message}
+            </motion.div>
+          )}
+          {!isConnected ? (
+            <WalletMultiButton isLoading={isLoading} />
+          ) : (
+            <Button
+              icon={"ArrowLeft"}
+              className="w-full relative"
+              label={"Unstake SOL"}
+              disabled={!canPerformAction}
+              isLoading={isProcessing}
+              onClick={handleUnstake}
+            />
+          )}
+          <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
+            <span className="text-secondary">{t("ui.disclaimer")}</span>
+            <span className="text-brand-secondary"> {t("ui.terms")}</span>
+          </span>
+        </div>
+      </div>
+    )
+  }
+
   const canPerformAction = isConnected &&
     isValidSolAmount(amount) &&
     !isProcessing &&
@@ -163,13 +376,13 @@ export default function StakeWidget() {
             <span>{t("ui.stake")}</span>
           </button>
           <button
-            onClick={() => setSelectedTab("unstake")}
+            onClick={() => setSelectedTab("manage")}
             className={classNames(
               "cursor-pointer hover:bg-background-card/50 transition px-6 py-3 relative font-mono text-tertiary",
-              selectedTab === "unstake" && "!text-brand-primary"
+              selectedTab === "manage" && "!text-brand-primary"
             )}
           >
-            {selectedTab === "unstake" && (
+            {selectedTab === "manage" && (
               <>
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -185,117 +398,13 @@ export default function StakeWidget() {
                 />
               </>
             )}
-            <span>{t("ui.unstake")}</span>
+            <span>{t("ui.manage")}</span>
           </button>
         </div>
-        <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
-          <div className="flex flex-col gap-y-5">
-            <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
-              <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
-                <span className="text-sm font-mono leading-[100%] text-primary">
-                  {t("ui.native")}
-                </span>
-              </button>
-              <button className="w-full py-1.5 rounded-lg opacity-50 cursor-not-allowed">
-                <span className="text-sm font-mono leading-[100%] text-mute">
-                  {t("ui.liquid")}
-                </span>
-              </button>
-            </div>
-            <div className="flex flex-col gap-y-1">
-              <div className="w-full flex items-center justify-between px-1.5">
-                <span className="font-medium">{t("ui.amount")}</span>
-                <div className="flex items-center gap-x-1.5 text-tertiary">
-                  <Icon name="WalletSmall" />
-                  <span className="text-sm font-mono">
-                    {selectedTab === "stake"
-                      ? `${formatSol(balance)} SOL`
-                      : `${formatSol(stakingStats.totalStaked)} SOL staked`
-                    }
-                  </span>
-                </div>
-              </div>
-              <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
-                <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
-                  <Image
-                    src="/icons/sol.svg"
-                    alt="Solana Icon"
-                    width={24}
-                    height={24}
-                  />
-                  <span className="leading-[100%]">SOL</span>
-                </div>
-                <input
-                  className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                  placeholder="0.00"
-                  disabled={!isConnected || isLoading}
-                  value={amount}
-                  onChange={(e) => handleAmountChange(e.target.value)}
-                />
-                <Button
-                  size="xs"
-                  label={t("ui.max")}
-                  disabled={!isConnected || isLoading}
-                  onClick={handleMaxClick}
-                />
-              </div>
-              <div className="h-[24px] w-full">
-                {amount && (parseFloat(amount) || 0) > 0 && (
-                  <motion.div
-                    className="w-full flex"
-                    initial={{ opacity: 0 }}
-                    animate={{
-                      opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
-                    }}
-                    transition={{ duration: 0.5, ease: anticipate }}
-                  >
-                    <Badge
-                      color="rgb(173,185,210)"
-                      className="font-mono ml-auto"
-                      value={`~$${((parseFloat(amount) || 0) * solPrice).toFixed(2)} USD`}
-                    />
-                  </motion.div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-y-5 items-center justify-center">
-            {/* Transaction Status */}
-            {transactionStatus.type && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={classNames(
-                  "w-full p-3 rounded-lg text-sm font-mono text-center",
-                  transactionStatus.type === 'success'
-                    ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                    : "bg-red-500/20 text-red-400 border border-red-500/30"
-                )}
-              >
-                {transactionStatus.message}
-              </motion.div>
-            )}
-
-            {!isConnected ? (
-              <WalletMultiButton isLoading={isLoading} />
-            ) : (
-              <Button
-                icon={selectedTab === "stake" ? "Target" : "ArrowLeft"}
-                className="w-full relative"
-                label={selectedTab === "stake" ? "Stake SOL" : "Unstake SOL"}
-                disabled={!canPerformAction}
-                isLoading={isProcessing}
-                onClick={handleAction}
-              />
-            )}
-
-            <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
-              <span className="text-secondary">{t("ui.disclaimer")}</span>
-              <span className="text-brand-secondary"> {t("ui.terms")}</span>
-            </span>
-          </div>
-        </div>
+        { selectedTab === "stake" ?
+          <StakeForm /> :
+          <ManageForm />
+        }
       </div>
     </div>
   );
