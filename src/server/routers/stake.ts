@@ -50,22 +50,82 @@ export const stakeRouter = createTRPCRouter({
       const stakeDecoder = getStakeDecoder()
 
       const stakeAccountsInfo = stakeAccounts.map((account) => {
-        return {
-          address: account.pubkey.toString(),
-          amountStaked: Number(stakeDecoder.decode(account.account.data, 124).delegation.stake) / LAMPORTS_PER_SOL,
-          stakingAuthority: metaDecoder.decode(account.account.data, 4).authorized.staker,
-          status: statusDecoder.decode(account.account.data).state.__kind,
+          return {
+            address: account.pubkey.toString(),
+            amountStaked:
+              Number(
+                stakeDecoder.decode(account.account.data, 124).delegation.stake
+              ) / LAMPORTS_PER_SOL,
+            stakingAuthority: metaDecoder.decode(account.account.data, 4)
+              .authorized.staker,
+            status: statusDecoder.decode(account.account.data).state.__kind,
+          };
+        });
+      // console.log(stakeAccountsInfo);
+      return stakeAccountsInfo;
+    }),
 
-        };
-      }).sort((poolA, poolB) =>  { if(poolA.amountStaked > poolB.amountStaked) {
-          return 1;
-        } else if (poolA.amountStaked < poolB.amountStaked){
-          return -1;
-        } else {
-          return 0;
-        }}).reverse()
+    poolsbyAuthority: publicProcedure
+    .input(z.object({
+      withdrawAuthority: z.string()
+    }))
+    .output(
+      z.array(
+        z.object({
+          address: z.string(),
+          amountStaked: z.number(),
+          status: z.string(),
+        })
+      )
+    )
+    .query(async ({ input }) => {
+      const stakeAccounts: GetProgramAccountsResponse =
+        await connection.getProgramAccounts(
+          new PublicKey("Stake11111111111111111111111111111111111111"),
+          {
+            commitment: "confirmed",
+            filters: [
+              {
+                memcmp: {
+                  offset: 124,
+                  bytes: process.env.NEXT_PUBLIC_VALIDATOR_VOTE_ACCOUNT!,
+                },
+              },
+              {
+                memcmp: {
+                  offset: 44,
+                  bytes: input.withdrawAuthority
+                },
+              },
+            ],
+          }
+        );
+      const statusDecoder = getStakeStateAccountDecoder();
+      const stakeDecoder = getStakeDecoder();
+
+      const stakeAccountsInfo = stakeAccounts
+        .map((account) => {
+          return {
+            address: account.pubkey.toString(),
+            amountStaked:
+              Number(
+                stakeDecoder.decode(account.account.data, 124).delegation.stake
+              ) / LAMPORTS_PER_SOL,
+            status: statusDecoder.decode(account.account.data).state.__kind,
+          };
+        })
+        .sort((poolA, poolB) => {
+          if (poolA.amountStaked > poolB.amountStaked) {
+            return 1;
+          } else if (poolA.amountStaked < poolB.amountStaked) {
+            return -1;
+          } else {
+            return 0;
+          }
+        })
+        .reverse();
 
       // console.log(stakeAccountsInfo);
-      return stakeAccountsInfo
+      return stakeAccountsInfo;
     }),
 });
