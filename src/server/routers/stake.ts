@@ -134,4 +134,30 @@ export const stakeRouter = createTRPCRouter({
       // console.log(stakeAccountsInfo);
       return stakeAccountsInfo;
     }),
+  pool: publicProcedure
+    .input(z.object({
+      address: z.string()
+    }))
+    .output(z.object({
+      address: z.string(),
+      amountStaked: z.number(),
+      stakingAuthority: z.string(),
+      withdrawAuthority: z.string(),
+      status: z.string()
+    }))
+    .query(async ({ input }) => {
+      const stakeAccount = await connection.getAccountInfo(new PublicKey(input.address));
+      const statusDecoder = getStakeStateAccountDecoder();
+      const stakeDecoder = getStakeDecoder();
+      const metaDecoder = getMetaDecoder();
+
+      return {
+        address: input.address,
+        amountStaked: Number(stakeDecoder.decode(Buffer.from(stakeAccount!.data), 124).delegation.stake) / LAMPORTS_PER_SOL,
+        stakingAuthority: metaDecoder.decode(Buffer.from(stakeAccount!.data), 4).authorized.staker,
+        withdrawAuthority: metaDecoder.decode(Buffer.from(stakeAccount!.data), 4).authorized.withdrawer,
+        status: statusDecoder.decode(Buffer.from(stakeAccount!.data)).state.__kind,
+      };
+    })
+
 });
