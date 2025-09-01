@@ -14,6 +14,7 @@ import { formatSol, isValidSolAmount, getMinimumStakeAmount } from "@/utils/sola
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import Image from "next/image";
 import { trpc } from "@/utils/trpc";
+import { PublicKey } from "@solana/web3.js";
 
 export default function StakeWidget() {
   const [selectedTab, setSelectedTab] = useState<"stake" | "manage">("stake");
@@ -128,8 +129,73 @@ export default function StakeWidget() {
 
   // Handle unstake operation
   const handleUnstake = async () => {
-    throw new Error("Not implemented");
+  if (!isConnected || !publicKey || !signTransaction) {
+    setTransactionStatus({
+      type: 'error',
+      message: 'Wallet not connected'
+    });
+    return;
+  }
 
+  if (!unstakeAccount) {
+    setTransactionStatus({
+      type: 'error',
+      message: 'Please select a stake account to unstake from'
+    });
+    return;
+  }
+
+  const unstakeAmount = parseFloat(amount);
+
+  if (!isValidSolAmount(amount) || unstakeAmount <= 0) {
+    setTransactionStatus({
+      type: 'error',
+      message: 'Enter a valid amount to unstake'
+    });
+    return;
+  }
+
+  if (!stakeAccount || unstakeAmount > (stakeAccount.amountStaked || 0)) {
+    setTransactionStatus({
+      type: 'error',
+      message: 'Insufficient staked SOL in selected account'
+    });
+    return;
+  }
+
+  setIsProcessing(true);
+  setTransactionStatus({ type: null, message: '' });
+
+  try {
+    const result = await stakingService.withdrawStake(
+      publicKey,
+      new PublicKey(unstakeAccount),
+      unstakeAmount,
+      signTransaction
+    );
+
+    if (result.success) {
+      setTransactionStatus({
+        type: 'success',
+        message: `Successfully unstaked ${unstakeAmount} SOL!`
+      });
+      setAmount('');
+      // Refresh data after successful transaction
+      setTimeout(() => refreshData(), 2000);
+    } else {
+      setTransactionStatus({
+        type: 'error',
+        message: result.error || 'Transaction failed'
+      });
+    }
+  } catch (error) {
+    setTransactionStatus({
+      type: 'error',
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
+  } finally {
+    setIsProcessing(false);
+  }
   };
 
   // Handle unstake operation

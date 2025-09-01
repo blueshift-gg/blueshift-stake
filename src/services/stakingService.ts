@@ -206,6 +206,46 @@ export class StakingService {
       };
     }
   }
+
+  async withdrawStake(
+    userPublicKey: PublicKey,
+    stakeAccount: PublicKey,
+    amount: number,
+    signTransaction: (transaction: Transaction) => Promise<Transaction>
+  ): Promise<{ success: boolean; signature?: string; error?: string }> {
+    try {
+      const transaction = new Transaction();
+      transaction.add(
+        StakeProgram.withdraw({
+          stakePubkey: stakeAccount,
+          authorizedPubkey: userPublicKey,
+          toPubkey: userPublicKey,
+          lamports: solToLamports(amount),
+        })
+      );
+
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPublicKey;
+
+      const signedTransaction = await signTransaction(transaction);
+
+      const signature = await this.connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      await this.connection.confirmTransaction(signature, "confirmed");
+
+      return { success: true, signature };
+    } catch (error) {
+      console.error("Error removing stake:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
 }
 
 export const stakingService = new StakingService();
