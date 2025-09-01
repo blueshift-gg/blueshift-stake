@@ -43,6 +43,13 @@ export default function StakeWidget() {
 
   const [mergeSource, setMergeSource] = useState<string | undefined>(undefined);
   const [mergeDestination, setMergeDestination] = useState<string | undefined>(undefined);
+  const [unstakeAccount, setUnstakeAccount] = useState<string | undefined>(undefined);
+
+  const { data: stakeAccount } = trpc.stake.pool.useQuery({
+    address: unstakeAccount || ""
+  }, {
+    enabled: unstakeAccount !== undefined
+  });
 
   // Handle max button click
   const handleMaxClick = () => {
@@ -121,6 +128,12 @@ export default function StakeWidget() {
 
   // Handle unstake operation
   const handleUnstake = async () => {
+    throw new Error("Not implemented");
+
+  };
+
+  // Handle unstake operation
+  const handleMerge = async () => {
     throw Error("Not implemented");
   };
 
@@ -300,7 +313,7 @@ export default function StakeWidget() {
                 !mergeDestination ||
                 mergeSource === mergeDestination
               }
-              onClick={() => {}}
+              onClick={handleMerge}
             />
           </div>
         </div>
@@ -319,13 +332,31 @@ export default function StakeWidget() {
               </span>
             </button>
           </div>
+          <div className="flex flex-col gap-y-2">
+            <label htmlFor="unstakeSource" className="text-sm font-medium text-primary">
+              {"Stake Account"}
+            </label>
+            <select
+              id="unstakeSource"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
+              value={unstakeAccount}
+              onChange={e => setUnstakeAccount(e.target.value)}
+            >
+              <option value={undefined}>Select Account</option>
+              {stakeAccounts?.map((account) => (
+                <option key={account.address} value={account.address}>
+                  {account.address}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-y-1">
             <div className="w-full flex items-center justify-between px-1.5">
               <span className="font-medium">{t("ui.amount")}</span>
               <div className="flex items-center gap-x-1.5 text-tertiary">
                 <Icon name="WalletSmall" />
                 <span className="text-sm font-mono">
-                  {`${formatSol(stakingStats.totalStaked)} SOL staked`}
+                  {`${formatSol(stakeAccount?.amountStaked || 0 )} SOL staked`}
                 </span>
               </div>
             </div>
