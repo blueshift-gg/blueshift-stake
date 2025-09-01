@@ -13,6 +13,7 @@ import { stakingService } from "@/services/stakingService";
 import { formatSol, isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import Image from "next/image";
+import { trpc } from "@/utils/trpc";
 
 export default function StakeWidget() {
   const [selectedTab, setSelectedTab] = useState<"stake" | "manage">("stake");
@@ -35,6 +36,13 @@ export default function StakeWidget() {
 
   const solPrice = 165.44; // In production, fetch from price API
   const minStakeAmount = getMinimumStakeAmount();
+
+  const { data: stakeAccounts } = trpc.stake.poolsbyAuthority.useQuery({
+    stakingAuthority: publicKey?.toString() || ""
+  });
+
+  const [mergeSource, setMergeSource] = useState<string | undefined>(undefined);
+  const [mergeDestination, setMergeDestination] = useState<string | undefined>(undefined);
 
   // Handle max button click
   const handleMaxClick = () => {
@@ -238,12 +246,21 @@ export default function StakeWidget() {
               <select
                 id="mergeSource"
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-                value={""}
-                onChange={() => {}}
+                value={mergeSource}
+                onChange={e => setMergeSource(e.target.value)}
               >
-                <option value="">Select Source</option>
-                <option value="abc">ABC</option>
-                <option value="123">123</option>
+                <option value={undefined}>Select Source</option>
+                {stakeAccounts?.filter((account) => {
+                  // If mergeSource is set, exclude the account with address === mergeSource
+                  if (mergeDestination) {
+                    return account.address !== mergeDestination;
+                  }
+                  return true;
+                }).map((account) => (
+                  <option key={account.address} value={account.address}>
+                    {account.address}
+                  </option>
+                ))}
               </select>
             </div>
             {/* Second Dropdown */}
@@ -254,14 +271,37 @@ export default function StakeWidget() {
               <select
                 id="mergeDestination"
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-                value={""}
-                onChange={() => {}}
+                value={mergeDestination}
+                onChange={e => setMergeDestination(e.target.value)}
               >
-                <option value="">Select Destination</option>
-                <option value="abc">ABC</option>
-                <option value="123">123</option>
+                <option value={undefined}>Select Destination</option>
+                {stakeAccounts?.filter((account) => {
+                  // If mergeSource is set, exclude the account with address === mergeSource
+                  if (mergeSource) {
+                    return account.address !== mergeSource;
+                  }
+                  return true;
+                }).map((account) => (
+                  <option key={account.address} value={account.address}>
+                    {account.address}
+                  </option>
+                ))}
               </select>
             </div>
+            <Button
+              className="w-full mt-4"
+              size="lg"
+              label={t("ui.merge") || "Merge"}
+              disabled={
+                !isConnected ||
+                isLoading ||
+                isProcessing ||
+                !mergeSource ||
+                !mergeDestination ||
+                mergeSource === mergeDestination
+              }
+              onClick={() => {}}
+            />
           </div>
         </div>
         {/* Unstake Section */}
