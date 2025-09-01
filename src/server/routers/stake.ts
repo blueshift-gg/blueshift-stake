@@ -64,16 +64,17 @@ export const stakeRouter = createTRPCRouter({
       // console.log(stakeAccountsInfo);
       return stakeAccountsInfo;
     }),
-
-    poolsbyAuthority: publicProcedure
+  poolsbyAuthority: publicProcedure
     .input(z.object({
-      withdrawAuthority: z.string()
+      stakingAuthority: z.string()
     }))
     .output(
       z.array(
         z.object({
           address: z.string(),
           amountStaked: z.number(),
+          stakingAuthority: z.string(),
+          withdrawAuthority: z.string(),
           status: z.string(),
         })
       )
@@ -94,7 +95,7 @@ export const stakeRouter = createTRPCRouter({
               {
                 memcmp: {
                   offset: 44,
-                  bytes: input.withdrawAuthority
+                  bytes: input.stakingAuthority
                 },
               },
             ],
@@ -102,6 +103,7 @@ export const stakeRouter = createTRPCRouter({
         );
       const statusDecoder = getStakeStateAccountDecoder();
       const stakeDecoder = getStakeDecoder();
+      const metaDecoder = getMetaDecoder();
 
       const stakeAccountsInfo = stakeAccounts
         .map((account) => {
@@ -111,6 +113,10 @@ export const stakeRouter = createTRPCRouter({
               Number(
                 stakeDecoder.decode(account.account.data, 124).delegation.stake
               ) / LAMPORTS_PER_SOL,
+            stakingAuthority: metaDecoder.decode(account.account.data, 4)
+              .authorized.staker,
+            withdrawAuthority: metaDecoder.decode(account.account.data, 4)
+              .authorized.withdrawer,
             status: statusDecoder.decode(account.account.data).state.__kind,
           };
         })
