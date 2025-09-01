@@ -226,6 +226,46 @@ export default function StakeWidget() {
   const ManageForm = () => {
     return (
         <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
+        {/* Merge Section */}
+        <div className="flex flex-col gap-y-4">
+          <h3 className="text-lg font-semibold text-primary mb-1">{t("ui.merge") || "Merge"}</h3>
+          <div className="flex flex-col gap-3">
+            {/* First Dropdown */}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeSource">
+                {t("ui.mergeSource") || "Source Account"}
+              </label>
+              <select
+                id="mergeSource"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
+                value={""}
+                onChange={() => {}}
+              >
+                <option value="">Select Source</option>
+                <option value="abc">ABC</option>
+                <option value="123">123</option>
+              </select>
+            </div>
+            {/* Second Dropdown */}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeDestination">
+                {t("ui.mergeDestination") || "Destination Account"}
+              </label>
+              <select
+                id="mergeDestination"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
+                value={""}
+                onChange={() => {}}
+              >
+                <option value="">Select Destination</option>
+                <option value="abc">ABC</option>
+                <option value="123">123</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        {/* Unstake Section */}
+        <h3 className="text-lg font-semibold text-primary mb-1 mt-6">{t("ui.unstake") || "Unstake"}</h3>
         <div className="flex flex-col gap-y-5">
           <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
             <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
