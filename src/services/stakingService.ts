@@ -246,6 +246,43 @@ export class StakingService {
       };
     }
   }
+
+  async mergeStake(
+    userPublicKey: PublicKey,
+    sourceAccount: PublicKey,
+    destinationAccount: PublicKey,
+    signTransaction: (transaction: Transaction) => Promise<Transaction>
+  ): Promise<{ success: boolean; signature?: string; error?: string }> {
+    try {
+      const transaction = new Transaction();
+
+      transaction.add(
+        StakeProgram.merge({
+          stakePubkey: destinationAccount,
+          authorizedPubkey: userPublicKey,
+          sourceStakePubKey: sourceAccount,
+        })
+      );
+
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPublicKey;
+
+      const signedTransaction = await signTransaction(transaction);
+
+      const signature = await this.connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      await this.connection.confirmTransaction(signature, "confirmed");
+
+      return { success: true, signature };
+
+    } catch (error) {
+      console.error("Error merging stake:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+    }
+  }
 }
 
 export const stakingService = new StakingService();

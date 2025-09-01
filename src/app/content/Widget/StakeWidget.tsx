@@ -200,7 +200,55 @@ export default function StakeWidget() {
 
   // Handle unstake operation
   const handleMerge = async () => {
-    throw Error("Not implemented");
+    if (!isConnected || !publicKey || !signTransaction) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Wallet not connected'
+      });
+      return;
+    }
+
+    if (!mergeSource || !mergeDestination) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Please select a source and destination account'
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setTransactionStatus({ type: null, message: '' });
+
+    try {
+      const result = await stakingService.mergeStake(
+        publicKey,
+        new PublicKey(mergeSource),
+        new PublicKey(mergeDestination),
+        signTransaction
+      );
+
+      if (result.success) {
+        setTransactionStatus({
+          type: 'success',
+          message: 'Successfully merged stake accounts'
+        });
+        setAmount('');
+        // Refresh data after successful transaction
+        setTimeout(() => refreshData(), 2000);
+      } else {
+        setTransactionStatus({
+          type: 'error',
+          message: result.error || 'Transaction failed'
+        });
+      }
+    } catch (error) {
+      setTransactionStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const StakeForm = () => {
