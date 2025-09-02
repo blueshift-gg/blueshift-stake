@@ -37,7 +37,7 @@ export class StakingService {
       const balance = await this.connection.getBalance(publicKey);
       return lamportsToSol(balance);
     } catch (error) {
-      console.error('Error fetching balance:', error);
+      console.error("Error fetching balance:", error);
       return 0;
     }
   }
@@ -75,14 +75,17 @@ export class StakingService {
         };
         const info = parsedData.parsed?.info;
 
-        let state: 'active' | 'inactive' | 'activating' | 'deactivating' = 'inactive';
+        let state: "active" | "inactive" | "activating" | "deactivating" =
+          "inactive";
         if (info?.stake) {
-          if (info.stake.delegation?.deactivationEpoch !== '18446744073709551615') {
-            state = 'deactivating';
+          if (
+            info.stake.delegation?.deactivationEpoch !== "18446744073709551615"
+          ) {
+            state = "deactivating";
           } else if (info.stake.delegation?.activationEpoch) {
-            state = 'active';
+            state = "active";
           } else {
-            state = 'activating';
+            state = "activating";
           }
         }
 
@@ -90,15 +93,21 @@ export class StakingService {
           pubkey: account.pubkey,
           lamports: account.account.lamports,
           state,
-          validator: info?.stake?.delegation?.voter ? new PublicKey(info.stake.delegation.voter) : undefined,
-          activationEpoch: info?.stake?.delegation?.activationEpoch ? parseInt(info.stake.delegation.activationEpoch) : undefined,
-          deactivationEpoch: info?.stake?.delegation?.deactivationEpoch && info.stake.delegation.deactivationEpoch !== '18446744073709551615'
-            ? parseInt(info.stake.delegation.deactivationEpoch)
+          validator: info?.stake?.delegation?.voter
+            ? new PublicKey(info.stake.delegation.voter)
             : undefined,
+          activationEpoch: info?.stake?.delegation?.activationEpoch
+            ? parseInt(info.stake.delegation.activationEpoch)
+            : undefined,
+          deactivationEpoch:
+            info?.stake?.delegation?.deactivationEpoch &&
+            info.stake.delegation.deactivationEpoch !== "18446744073709551615"
+              ? parseInt(info.stake.delegation.deactivationEpoch)
+              : undefined,
         };
       });
     } catch (error) {
-      console.error('Error fetching stake accounts:', error);
+      console.error("Error fetching stake accounts:", error);
       return [];
     }
   }
@@ -116,7 +125,7 @@ export class StakingService {
       if (amountLamports < minimumAmount) {
         return {
           success: false,
-          error: 'Amount too small. Minimum stake is 0.001 SOL',
+          error: "Amount too small. Minimum stake is 0.001 SOL",
         };
       }
 
@@ -163,17 +172,18 @@ export class StakingService {
       );
 
       // Confirm transaction
-      await this.connection.confirmTransaction(signature, 'confirmed');
+      await this.connection.confirmTransaction(signature, "confirmed");
 
       return {
         success: true,
         signature,
       };
     } catch (error) {
-      console.error('Error creating stake:', error);
+      console.error("Error creating stake:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -186,8 +196,9 @@ export class StakingService {
         this.getStakeAccounts(publicKey),
       ]);
 
-      const totalStaked = stakeAccounts.reduce((sum, account) =>
-        sum + lamportsToSol(account.lamports), 0
+      const totalStaked = stakeAccounts.reduce(
+        (sum, account) => sum + lamportsToSol(account.lamports),
+        0
       );
 
       const apy = 6.1;
@@ -198,7 +209,7 @@ export class StakingService {
         apy,
       };
     } catch (error) {
-      console.error('Error fetching staking stats:', error);
+      console.error("Error fetching staking stats:", error);
       return {
         totalStaked: 0,
         availableBalance: 0,
@@ -285,10 +296,73 @@ export class StakingService {
       await this.connection.confirmTransaction(signature, "confirmed");
 
       return { success: true, signature };
-
     } catch (error) {
       console.error("Error merging stake:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  async splitStake(
+    userPublicKey: PublicKey,
+    stakeAccount: PublicKey,
+    amount: number,
+    signTransaction: (transaction: Transaction) => Promise<Transaction>
+  ): Promise<{ success: boolean; signature?: string; error?: string }> {
+    const amountLamports = solToLamports(amount);
+    const minimumAmount = solToLamports(0.001); // Minimum for rent exemption
+
+    if (amountLamports < minimumAmount) {
+      return {
+        success: false,
+        error: "Amount too small. Minimum stake is 0.001 SOL",
+      };
+    }
+
+    const rentExemption =
+      await this.connection.getMinimumBalanceForRentExemption(
+        StakeProgram.space
+      );
+
+    const splitStakeAccount = Keypair.generate();
+
+    try {
+      const transaction = new Transaction();
+      transaction.add(
+        StakeProgram.split(
+          {
+            stakePubkey: stakeAccount,
+            authorizedPubkey: userPublicKey,
+            lamports: amountLamports,
+            splitStakePubkey: splitStakeAccount.publicKey,
+          },
+          rentExemption
+        )
+      );
+
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPublicKey;
+
+      const signedTransaction = await signTransaction(transaction);
+
+      const signature = await this.connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      await this.connection.confirmTransaction(signature, "confirmed");
+
+      return { success: true, signature };
+    } catch (error) {
+      console.error("Error splitting stake:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      };
     }
   }
 }
