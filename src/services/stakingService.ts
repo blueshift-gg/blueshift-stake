@@ -215,6 +215,14 @@ export class StakingService {
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
     try {
       const transaction = new Transaction();
+
+      transaction.add(
+        StakeProgram.deactivate({
+          stakePubkey: stakeAccount,
+          authorizedPubkey: userPublicKey,
+        })
+      );
+
       transaction.add(
         StakeProgram.withdraw({
           stakePubkey: stakeAccount,
