@@ -6,8 +6,11 @@ import {
   Authorized,
   Lockup,
   Keypair,
+  LAMPORTS_PER_SOL,
+  SystemProgram,
 } from '@solana/web3.js';
 import { connection, VALIDATOR_VOTE_ACCOUNT, solToLamports, lamportsToSol } from '@/utils/solana';
+import { getStakeDecoder } from '@solana-program/stake';
 
 export interface StakeAccount {
   pubkey: PublicKey;
@@ -224,22 +227,72 @@ export class StakingService {
     amount: number,
     signTransaction: (transaction: Transaction) => Promise<Transaction>
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
+
+    const rentExemption =
+      await this.connection.getMinimumBalanceForRentExemption(
+        StakeProgram.space
+      );
     try {
+      let newStakeAccount: Keypair | undefined = undefined;
       const transaction = new Transaction();
+
+      // If the amount to withdraw is less than the full stake, split the stake account first.
+      const stakeAccountInfo = await this.connection.getAccountInfo(stakeAccount);
+      if (!stakeAccountInfo) {
+        throw new Error("Stake account not found");
+      }
+      const stakeDecoder = getStakeDecoder();
+
+      const stakeAmount = Number(stakeDecoder.decode(
+        Buffer.from(stakeAccountInfo.data),
+        124
+      ).delegation.stake) / LAMPORTS_PER_SOL;
+
+      const withdrawLamports = solToLamports(amount);
+
+      if (withdrawLamports < stakeAmount) {
+        // Create a new account to receive the split
+        newStakeAccount = Keypair.generate();
+
+        // Add instruction to create the new account
+        transaction.add(
+          SystemProgram.createAccount({
+            fromPubkey: userPublicKey,
+            newAccountPubkey: newStakeAccount!.publicKey,
+            lamports: withdrawLamports,
+            space: StakeProgram.space,
+            programId: StakeProgram.programId,
+          })
+        );
+
+        // Add split instruction
+        transaction.add(
+          StakeProgram.split({
+            stakePubkey: stakeAccount,
+            authorizedPubkey: userPublicKey,
+            splitStakePubkey: newStakeAccount!.publicKey,
+            lamports: withdrawLamports,
+          },
+          rentExemption)
+        );
+
+        // The new account must be a signer for the transaction
+        transaction.partialSign(newStakeAccount);
+      }
 
       transaction.add(
         StakeProgram.deactivate({
-          stakePubkey: stakeAccount,
+          stakePubkey: newStakeAccount ? newStakeAccount!.publicKey : stakeAccount,
           authorizedPubkey: userPublicKey,
         })
       );
 
       transaction.add(
         StakeProgram.withdraw({
-          stakePubkey: stakeAccount,
+          stakePubkey: newStakeAccount ? newStakeAccount!.publicKey : stakeAccount,
           authorizedPubkey: userPublicKey,
           toPubkey: userPublicKey,
-          lamports: solToLamports(amount),
+          lamports: withdrawLamports,
         })
       );
 
