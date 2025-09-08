@@ -221,75 +221,128 @@ export class StakingService {
     }
   }
 
-  async withdrawStake(
+  /**
+   * Deactivate a stake account.
+   * Returns the transaction signature if successful.
+   */
+  async deactivateStake(
     userPublicKey: PublicKey,
     stakeAccount: PublicKey,
-    amount: number,
+    withdrawLamports: number,
     signTransaction: (transaction: Transaction) => Promise<Transaction>
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
-
-    const rentExemption =
-      await this.connection.getMinimumBalanceForRentExemption(
-        StakeProgram.space
-      );
     try {
-      let newStakeAccount: Keypair | undefined = undefined;
-      const transaction = new Transaction();
 
-      // If the amount to withdraw is less than the full stake, split the stake account first.
+      let newStakeAccount: Keypair | undefined = undefined;
+
       const stakeAccountInfo = await this.connection.getAccountInfo(stakeAccount);
       if (!stakeAccountInfo) {
         throw new Error("Stake account not found");
       }
       const stakeDecoder = getStakeDecoder();
+      const stakeDecoded = stakeDecoder.decode(Buffer.from(stakeAccountInfo.data), 124);
+      const stakeAmountLamports = Number(stakeDecoded.delegation.stake);
+      const transaction = new Transaction();
 
-      const stakeAmount = Number(stakeDecoder.decode(
-        Buffer.from(stakeAccountInfo.data),
-        124
-      ).delegation.stake) / LAMPORTS_PER_SOL;
+      if (withdrawLamports < stakeAmountLamports) {
+        // Partial withdraw: split first
+        const rentExemption =
+          await this.connection.getMinimumBalanceForRentExemption(
+            StakeProgram.space
+          );
 
-      const withdrawLamports = solToLamports(amount);
-
-      if (withdrawLamports < stakeAmount) {
-        // Create a new account to receive the split
         newStakeAccount = Keypair.generate();
 
-        // Add instruction to create the new account
         transaction.add(
           SystemProgram.createAccount({
             fromPubkey: userPublicKey,
-            newAccountPubkey: newStakeAccount!.publicKey,
+            newAccountPubkey: newStakeAccount.publicKey,
             lamports: withdrawLamports,
             space: StakeProgram.space,
             programId: StakeProgram.programId,
           })
         );
 
-        // Add split instruction
         transaction.add(
-          StakeProgram.split({
-            stakePubkey: stakeAccount,
-            authorizedPubkey: userPublicKey,
-            splitStakePubkey: newStakeAccount!.publicKey,
-            lamports: withdrawLamports,
-          },
-          rentExemption)
+          StakeProgram.split(
+            {
+              stakePubkey: stakeAccount,
+              authorizedPubkey: userPublicKey,
+              splitStakePubkey: newStakeAccount.publicKey,
+              lamports: withdrawLamports,
+            },
+            rentExemption
+          )
         );
-
         // The new account must be a signer for the transaction
         transaction.partialSign(newStakeAccount);
+
       }
 
       transaction.add(
         StakeProgram.deactivate({
-          stakePubkey: newStakeAccount ? newStakeAccount!.publicKey : stakeAccount,
+          stakePubkey: newStakeAccount ? newStakeAccount.publicKey : stakeAccount,
           authorizedPubkey: userPublicKey,
         })
       );
 
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPublicKey;
+
+      const signedTransaction = await signTransaction(transaction);
+
+      const signature = await this.connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      await this.connection.confirmTransaction(signature, "confirmed");
+
+      return { success: true, signature };
+    } catch (error) {
+      console.error("Error deactivating stake:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      };
+    }
+  }
+
+  /**
+   * Withdraw stake from a (deactivated and fully cooled down) stake account.
+   * If withdrawing a partial amount, splits the account first.
+   * Checks that the stake is deactivated and cooldown is complete.
+   */
+  async withdrawStake(
+    userPublicKey: PublicKey,
+    stakeAccount: PublicKey,
+    signTransaction: (transaction: Transaction) => Promise<Transaction>
+  ): Promise<{ success: boolean; signature?: string; error?: string }> {
+    try {
+      // Fetch stake account info
+      const stakeAccountInfo = await this.connection.getAccountInfo(stakeAccount);
+      if (!stakeAccountInfo) {
+        throw new Error("Stake account not found");
+      }
+      const stakeDecoder = getStakeDecoder();
+      const stakeDecoded = stakeDecoder.decode(Buffer.from(stakeAccountInfo.data), 124);
+
+      // Check if stake is deactivated and cooldown is complete
+      const deactivationEpoch = stakeDecoded.delegation?.deactivationEpoch;
+      const currentEpoch = (await this.connection.getEpochInfo()).epoch;
+
+      if (deactivationEpoch !== undefined && currentEpoch <= deactivationEpoch) {
+        throw new Error("Stake account is still in cooldown. Please wait until the deactivation epoch has passed.");
+      }
+
+      const stakeAmountLamports = Number(stakeDecoded.delegation.stake);
+      const withdrawLamports = solToLamports(stakeAmountLamports);
+
+      const transaction = new Transaction();
+
       transaction.add(
         StakeProgram.withdraw({
-          stakePubkey: newStakeAccount ? newStakeAccount!.publicKey : stakeAccount,
+          stakePubkey: stakeAccount,
           authorizedPubkey: userPublicKey,
           toPubkey: userPublicKey,
           lamports: withdrawLamports,
@@ -310,11 +363,10 @@ export class StakingService {
 
       return { success: true, signature };
     } catch (error) {
-      console.error("Error removing stake:", error);
+      console.error("Error withdrawing stake:", error);
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
