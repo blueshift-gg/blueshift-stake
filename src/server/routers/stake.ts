@@ -143,7 +143,8 @@ export const stakeRouter = createTRPCRouter({
       amountStaked: z.number(),
       stakingAuthority: z.string(),
       withdrawAuthority: z.string(),
-      status: z.string()
+      status: z.string(),
+      deactivationEpoch: z.number(),
     }))
     .query(async ({ input }) => {
       const stakeAccount = await connection.getAccountInfo(new PublicKey(input.address));
@@ -157,7 +158,13 @@ export const stakeRouter = createTRPCRouter({
         stakingAuthority: metaDecoder.decode(Buffer.from(stakeAccount!.data), 4).authorized.staker,
         withdrawAuthority: metaDecoder.decode(Buffer.from(stakeAccount!.data), 4).authorized.withdrawer,
         status: statusDecoder.decode(Buffer.from(stakeAccount!.data)).state.__kind,
+        deactivationEpoch: parseInt(stakeDecoder.decode(Buffer.from(stakeAccount!.data), 124).delegation.deactivationEpoch.toString()),
       };
-    })
-
+    }),
+  currentEpoch: publicProcedure
+    .input(z.void())
+    .output(z.number())
+    .query(async () => {
+      return (await connection.getEpochInfo()).epoch;
+    }),
 });

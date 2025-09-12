@@ -10,7 +10,7 @@ import Badge from "@/components/Badge/Badge";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useStakingStore } from "@/stores/stakingStore";
 import { stakingService } from "@/services/stakingService";
-import { formatSol, isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
+import { formatSol, isValidSolAmount, getMinimumStakeAmount, connection } from "@/utils/solana";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import Image from "next/image";
 import { trpc } from "@/utils/trpc";
@@ -51,6 +51,12 @@ export default function StakeWidget() {
   }, {
     enabled: !!unstakeAccount
   });
+
+  const deactivationEpoch = stakeAccount?.deactivationEpoch;
+
+  console.log(deactivationEpoch);
+
+  const { data: currentEpoch } = trpc.stake.currentEpoch.useQuery();
 
   // Handle max button click
   const handleMaxClick = () => {
@@ -127,75 +133,127 @@ export default function StakeWidget() {
     }
   };
 
-  // Handle unstake operation
-  const handleUnstake = async () => {
-  if (!isConnected || !publicKey || !signTransaction) {
-    setTransactionStatus({
-      type: 'error',
-      message: 'Wallet not connected'
-    });
-    return;
-  }
-
-  if (!unstakeAccount) {
-    setTransactionStatus({
-      type: 'error',
-      message: 'Please select a stake account to unstake from'
-    });
-    return;
-  }
-
-  const unstakeAmount = parseFloat(amount);
-
-  if (!isValidSolAmount(amount) || unstakeAmount <= 0) {
-    setTransactionStatus({
-      type: 'error',
-      message: 'Enter a valid amount to unstake'
-    });
-    return;
-  }
-
-  if (!stakeAccount || unstakeAmount > (stakeAccount.amountStaked || 0)) {
-    setTransactionStatus({
-      type: 'error',
-      message: 'Insufficient staked SOL in selected account'
-    });
-    return;
-  }
-
-  setIsProcessing(true);
-  setTransactionStatus({ type: null, message: '' });
-
-  try {
-    const result = await stakingService.withdrawStake(
-      publicKey,
-      new PublicKey(unstakeAccount),
-      unstakeAmount,
-      signTransaction
-    );
-
-    if (result.success) {
-      setTransactionStatus({
-        type: 'success',
-        message: `Successfully unstaked ${unstakeAmount} SOL!`
-      });
-      setAmount('');
-      // Refresh data after successful transaction
-      setTimeout(() => refreshData(), 2000);
-    } else {
+  // Handle deactivate operation
+  const handleDeactivate = async () => {
+    if (!isConnected || !publicKey || !signTransaction) {
       setTransactionStatus({
         type: 'error',
-        message: result.error || 'Transaction failed'
+        message: 'Wallet not connected'
       });
+      return;
     }
-  } catch (error) {
-    setTransactionStatus({
-      type: 'error',
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
-    });
-  } finally {
-    setIsProcessing(false);
-  }
+
+    if (!unstakeAccount) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Please select a stake account to deactivate'
+      });
+      return;
+    }
+
+    const unstakeAmount = parseFloat(amount);
+
+    if (!isValidSolAmount(amount) || unstakeAmount <= 0) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Enter a valid amount to deactivate'
+      });
+      return;
+    }
+
+    if (!stakeAccount || unstakeAmount > (stakeAccount.amountStaked || 0)) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Insufficient staked SOL in selected account'
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setTransactionStatus({ type: null, message: '' });
+
+    try {
+      const result = await stakingService.deactivateStake(
+        publicKey,
+        new PublicKey(unstakeAccount),
+        unstakeAmount,
+        signTransaction
+      );
+
+      if (result.success) {
+        setTransactionStatus({
+          type: 'success',
+          message: `Successfully deactivated ${unstakeAmount} SOL!`
+        });
+        setAmount('');
+        // Refresh data after successful transaction
+        setTimeout(() => refreshData(), 2000);
+      } else {
+        setTransactionStatus({
+          type: 'error',
+          message: result.error || 'Transaction failed'
+        });
+      }
+    } catch (error) {
+      setTransactionStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle withdraw operation
+  const handleWithdraw = async () => {
+    if (!isConnected || !publicKey || !signTransaction) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Wallet not connected'
+      });
+      return;
+    }
+
+    if (!unstakeAccount) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'Please select a stake account to withdraw from'
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    setTransactionStatus({ type: null, message: '' });
+
+    try {
+      const result = await stakingService.withdrawStake(
+        publicKey,
+        new PublicKey(unstakeAccount),
+        signTransaction
+      );
+
+      if (result.success) {
+        setTransactionStatus({
+          type: 'success',
+          message: `Successfully withdrew SOL!`
+        });
+        setAmount('');
+        // Refresh data after successful transaction
+        setTimeout(() => refreshData(), 2000);
+      } else {
+        setTransactionStatus({
+          type: 'error',
+          message: result.error || 'Transaction failed'
+        });
+      }
+    } catch (error) {
+      setTransactionStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Handle unstake operation
@@ -588,7 +646,6 @@ export default function StakeWidget() {
               </div>
             </div>
             <div className="flex flex-col gap-y-5 items-center justify-center">
-              {/* Transaction Status */}
               {transactionStatus.type && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -605,16 +662,37 @@ export default function StakeWidget() {
               )}
               {!isConnected ? (
                 <WalletMultiButton isLoading={isLoading} />
-              ) : (
-                <Button
-                  icon={"ArrowLeft"}
-                  className="w-full relative"
-                  label={"Unstake SOL"}
-                  disabled={!canPerformAction}
-                  isLoading={isProcessing}
-                  onClick={handleUnstake}
-                />
-              )}
+              ) :  !deactivationEpoch ? (
+                  <Button
+                    icon={"ArrowLeft"}
+                    className="w-full relative"
+                    label="Unstake SOL"
+                    disabled={!canPerformAction}
+                    isLoading={isProcessing}
+                    onClick={handleDeactivate}
+                  />
+                ) : currentEpoch && currentEpoch < deactivationEpoch ? (
+                  <Button
+                    icon={"ArrowLeft"}
+                    className="w-full relative"
+                    label="Withdraw in Next Epoch"
+                    disabled={
+                      !canPerformAction ||
+                      (typeof currentEpoch === "number" && currentEpoch < deactivationEpoch)
+                    }
+                    isLoading={isProcessing}
+                    onClick={undefined}
+                  />
+                ) : (
+                  <Button
+                    icon={"ArrowLeft"}
+                    className="w-full relative"
+                    label="Withdraw Stake"
+                    disabled={!canPerformAction}
+                    isLoading={isProcessing}
+                    onClick={handleWithdraw}
+                  />
+                )}
               <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
                 <span className="text-secondary">{t("ui.disclaimer")}</span>
                 <span className="text-brand-secondary"> {t("ui.terms")}</span>
