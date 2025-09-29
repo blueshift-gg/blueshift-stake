@@ -325,9 +325,9 @@ export default function StakeWidget() {
   }, [transactionStatus]);
 
   const deactivationStatus = {
-    active: stakeAccount && stakeAccount?.deactivationEpoch === "18446744073709551615",
-    deactivating: stakeAccount && stakeAccount?.deactivationEpoch !== "18446744073709551615" && currentEpoch! < parseInt(stakeAccount?.deactivationEpoch!),
-    withdrawing: stakeAccount && parseInt(stakeAccount?.deactivationEpoch!) < currentEpoch!,
+    active: stakeAccount?.deactivationEpoch === "18446744073709551615",
+    deactivating: stakeAccount?.deactivationEpoch !== "18446744073709551615" && currentEpoch! < parseInt(stakeAccount?.deactivationEpoch!) + 1,
+    withdrawing: parseInt(stakeAccount?.deactivationEpoch!) + 1 <= currentEpoch!,
   }
 
   return (
@@ -668,29 +668,27 @@ export default function StakeWidget() {
               { !isConnected && (
                 <WalletMultiButton isLoading={isLoading} />
               )}
-              { deactivationStatus.active && (
+              { (!stakeAccount || (stakeAccount && deactivationStatus.active)) && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
-                    label="Unstake SOL"
+                    label="Undelegate Stake"
                     disabled={!canPerformAction}
                     isLoading={isProcessing}
                     onClick={handleDeactivate}
                   />
                 )}
-              { deactivationStatus.deactivating && (
+              { (stakeAccount && deactivationStatus.deactivating) && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
                     label="Withdraw in Next Epoch"
-                    disabled={
-                      !canPerformAction
-                    }
+                    disabled={true}
                     isLoading={isProcessing}
                     onClick={undefined}
                   />
                 )}
-              { deactivationStatus.withdrawing && (
+              { stakeAccount && deactivationStatus.withdrawing && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
