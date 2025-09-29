@@ -45,6 +45,10 @@ export class StakingService {
     }
   }
 
+  async getMinimumBalanceForRentExemption(): Promise<number> {
+    return await this.connection.getMinimumBalanceForRentExemption(StakeProgram.space);
+  }
+
   // Get all stake accounts for a user
   async getStakeAccounts(publicKey: PublicKey): Promise<StakeAccount[]> {
     try {
@@ -235,16 +239,10 @@ export class StakingService {
 
       let newStakeAccount: Keypair | undefined = undefined;
 
-      const stakeAccountInfo = await this.connection.getAccountInfo(stakeAccount);
-      if (!stakeAccountInfo) {
-        throw new Error("Stake account not found");
-      }
-      const stakeDecoder = getStakeDecoder();
-      const stakeDecoded = stakeDecoder.decode(Buffer.from(stakeAccountInfo.data), 124);
-      const stakeAmountLamports = Number(stakeDecoded.delegation.stake);
+      const stakeAccountInfo = await this.getStakingStats(new PublicKey(stakeAccount));
       const transaction = new Transaction();
 
-      if (withdrawLamports < stakeAmountLamports) {
+      if (withdrawLamports < stakeAccountInfo.totalStaked) {
         // Partial withdraw: split first
         const rentExemption =
           await this.connection.getMinimumBalanceForRentExemption(
@@ -335,7 +333,7 @@ export class StakingService {
         throw new Error("Stake account is still in cooldown. Please wait until the deactivation epoch has passed.");
       }
 
-      const stakeAmountLamports = Number(stakeDecoded.delegation.stake);
+      const stakeAmountLamports = (await this.getStakingStats(new PublicKey(stakeAccount))).availableBalance;
       const withdrawLamports = solToLamports(stakeAmountLamports);
 
       const transaction = new Transaction();
@@ -349,8 +347,9 @@ export class StakingService {
         })
       );
 
-      const { blockhash } = await this.connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
+      transaction.lastValidBlockHeight = lastValidBlockHeight;
       transaction.feePayer = userPublicKey;
 
       const signedTransaction = await signTransaction(transaction);

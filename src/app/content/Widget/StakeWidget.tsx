@@ -52,14 +52,13 @@ export default function StakeWidget() {
     enabled: !!unstakeAccount
   });
 
-  const deactivationEpoch = stakeAccount?.deactivationEpoch;
-
-  console.log(deactivationEpoch);
-
-  const { data: currentEpoch } = trpc.stake.currentEpoch.useQuery();
+  const { data: currentEpoch } = trpc.stake.currentEpoch.useQuery(undefined, {
+    enabled: !!publicKey,
+    refetchInterval: 5000,
+  })
 
   // Handle max button click
-  const handleMaxClick = () => {
+  const handleMaxClick = async () => {
     if (selectedTab === "stake") {
       // Leave some SOL for transaction fees
       const maxStakeAmount = Math.max(0, balance - 0.01);
@@ -161,7 +160,7 @@ export default function StakeWidget() {
       return;
     }
 
-    if (!stakeAccount || unstakeAmount > (stakeAccount.amountStaked || 0)) {
+    if (!stakeAccount || unstakeAmount > (stakeAccount.amountStaked + await stakingService.getMinimumBalanceForRentExemption() || 0)) {
       setTransactionStatus({
         type: 'error',
         message: 'Insufficient staked SOL in selected account'
@@ -324,6 +323,12 @@ export default function StakeWidget() {
       return () => clearTimeout(timer);
     }
   }, [transactionStatus]);
+
+  const deactivationStatus = {
+    active: stakeAccount && stakeAccount?.deactivationEpoch === "18446744073709551615",
+    deactivating: stakeAccount && stakeAccount?.deactivationEpoch !== "18446744073709551615" && currentEpoch! < parseInt(stakeAccount?.deactivationEpoch!),
+    withdrawing: stakeAccount && parseInt(stakeAccount?.deactivationEpoch!) < currentEpoch!,
+  }
 
   return (
     <div className="wrapper flex items-center justify-center w-full">
@@ -660,9 +665,10 @@ export default function StakeWidget() {
                   {transactionStatus.message}
                 </motion.div>
               )}
-              {!isConnected ? (
+              { !isConnected && (
                 <WalletMultiButton isLoading={isLoading} />
-              ) :  !deactivationEpoch ? (
+              )}
+              { deactivationStatus.active && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
@@ -671,19 +677,20 @@ export default function StakeWidget() {
                     isLoading={isProcessing}
                     onClick={handleDeactivate}
                   />
-                ) : currentEpoch && currentEpoch < deactivationEpoch ? (
+                )}
+              { deactivationStatus.deactivating && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
                     label="Withdraw in Next Epoch"
                     disabled={
-                      !canPerformAction ||
-                      (typeof currentEpoch === "number" && currentEpoch < deactivationEpoch)
+                      !canPerformAction
                     }
                     isLoading={isProcessing}
                     onClick={undefined}
                   />
-                ) : (
+                )}
+              { deactivationStatus.withdrawing && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
