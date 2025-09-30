@@ -38,7 +38,7 @@ export default function StakeWidget() {
   const solPrice = 165.44; // In production, fetch from price API
   const minStakeAmount = getMinimumStakeAmount();
 
-  const { data: stakeAccounts } = trpc.stake.poolsbyAuthority.useQuery({
+  const { data: stakeAccounts, refetch: refetchStakeAccounts } = trpc.stake.poolsbyAuthority.useQuery({
     stakingAuthority: publicKey?.toString() || ""
   });
 
@@ -46,7 +46,7 @@ export default function StakeWidget() {
   const [mergeDestination, setMergeDestination] = useState<string | undefined>(undefined);
   const [unstakeAccount, setUnstakeAccount] = useState<string | undefined>(undefined);
 
-  const { data: stakeAccount } = trpc.stake.pool.useQuery({
+  const { data: stakeAccount, refetch: refetchStakeAccount } = trpc.stake.pool.useQuery({
     address: unstakeAccount || ""
   }, {
     enabled: !!unstakeAccount
@@ -130,6 +130,8 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
+
+    refetchStakeAccounts();
   };
 
   // Handle deactivate operation
@@ -201,6 +203,9 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
+
+    refetchStakeAccounts();
+    refetchStakeAccount();
   };
 
   // Handle withdraw operation
@@ -253,6 +258,9 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
+
+    refetchStakeAccounts();
+    setUnstakeAccount(undefined);
   };
 
   // Handle unstake operation
@@ -306,6 +314,8 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
+
+    refetchStakeAccounts();
   };
 
   const canPerformAction = isConnected &&
@@ -602,7 +612,7 @@ export default function StakeWidget() {
                   <div className="flex items-center gap-x-1.5 text-tertiary">
                     <Icon name="WalletSmall" />
                     <span className="text-sm font-mono">
-                      {`${formatSol(stakeAccount?.amountStaked || 0 )} SOL staked`}
+                      {`${formatSol(!unstakeAccount ? 0: stakeAccount?.amountStaked ?? 0)} SOL staked`}
                     </span>
                   </div>
                 </div>
@@ -619,14 +629,14 @@ export default function StakeWidget() {
                   <input
                     className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                     placeholder="0.00"
-                    disabled={!isConnected || isLoading}
+                    disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                   />
                   <Button
                     size="xs"
                     label={t("ui.max")}
-                    disabled={!isConnected || isLoading}
+                    disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
                     onClick={handleMaxClick}
                   />
                 </div>
