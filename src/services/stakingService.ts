@@ -9,7 +9,7 @@ import {
   LAMPORTS_PER_SOL,
   SystemProgram,
 } from '@solana/web3.js';
-import { connection, VALIDATOR_VOTE_ACCOUNT, solToLamports, lamportsToSol } from '@/utils/solana';
+import { connection, VALIDATOR_VOTE_ACCOUNT, solToLamports, lamportsToSol, formatSol } from '@/utils/solana';
 import { getStakeDecoder } from '@solana-program/stake';
 
 export interface StakeAccount {
@@ -127,12 +127,12 @@ export class StakingService {
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
     try {
       const amountLamports = solToLamports(amount);
-      const minimumAmount = solToLamports(0.001); // Minimum for rent exemption
+      const minimumAmount = 0.001 + await this.getMinimumBalanceForRentExemption(); // Minimum for rent exemption
 
       if (amountLamports < minimumAmount) {
         return {
           success: false,
-          error: "Amount too small. Minimum stake is 0.001 SOL",
+          error: `Amount too small. Minimum stake is ${formatSol(minimumAmount)} SOL`,
         };
       }
 
