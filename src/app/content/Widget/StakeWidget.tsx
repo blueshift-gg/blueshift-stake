@@ -61,7 +61,7 @@ export default function StakeWidget() {
   const handleMaxClick = async () => {
     if (selectedTab === "stake") {
       // Leave some SOL for transaction fees
-      const maxStakeAmount = Math.max(0, balance - 0.01);
+      const maxStakeAmount = Math.max(0, balance - await stakingService.getMinimumBalanceForRentExemption());
       setAmount(maxStakeAmount.toString());
     } else {
       // For unstaking, show total staked amount
@@ -340,6 +340,12 @@ export default function StakeWidget() {
     withdrawing: parseInt(stakeAccount?.deactivationEpoch!) + 1 <= currentEpoch!,
   }
 
+  useEffect(() => {
+    if (deactivationStatus.withdrawing) {
+      setAmount(formatSol(stakingStats.totalStaked));
+    }
+  }, [stakeAccount, deactivationStatus.withdrawing]);
+
   return (
     <div className="wrapper flex items-center justify-center w-full">
       <div className="w-[550px] rounded-2xl flex flex-col overflow-hidden border border-border">
@@ -609,12 +615,12 @@ export default function StakeWidget() {
               <div className="flex flex-col gap-y-1">
                 <div className="w-full flex items-center justify-between px-1.5">
                   <span className="font-medium">{t("ui.amount")}</span>
-                  <div className="flex items-center gap-x-1.5 text-tertiary">
+                  {(stakeAccount && deactivationStatus.withdrawing) ? null: <div className="flex items-center gap-x-1.5 text-tertiary">
                     <Icon name="WalletSmall" />
                     <span className="text-sm font-mono">
-                      {`${formatSol(!unstakeAccount ? 0: stakeAccount?.amountStaked ?? 0)} SOL staked`}
+                      {`${formatSol(!unstakeAccount ? 0: stakingStats.totalStaked ?? 0)} SOL staked`}
                     </span>
-                  </div>
+                  </div>}
                 </div>
                 <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
                   <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
@@ -626,13 +632,19 @@ export default function StakeWidget() {
                     />
                     <span className="leading-[100%]">SOL</span>
                   </div>
-                  <input
+                  {(stakeAccount && deactivationStatus.withdrawing) ? <input
+                    className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
+                    placeholder={stakingStats.totalStaked.toString() ?? (0).toString()}
+                    disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                    value={formatSol(stakingStats.totalStaked)}
+                    readOnly
+                    /> : <input
                     className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                     placeholder="0.00"
                     disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
-                  />
+                  />}
                   <Button
                     size="xs"
                     label={t("ui.max")}
@@ -690,7 +702,6 @@ export default function StakeWidget() {
                 )}
               { (stakeAccount && deactivationStatus.deactivating) && (
                   <Button
-                    icon={"ArrowLeft"}
                     className="w-full relative"
                     label="Withdraw in Next Epoch"
                     disabled={true}
