@@ -10,7 +10,7 @@ import Badge from "@/components/Badge/Badge";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useStakingStore } from "@/stores/stakingStore";
 import { stakingService } from "@/services/stakingService";
-import { formatSol, isValidSolAmount, getMinimumStakeAmount, connection } from "@/utils/solana";
+import { formatSol, isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import Image from "next/image";
 import { trpc } from "@/utils/trpc";
@@ -61,11 +61,11 @@ export default function StakeWidget() {
   const handleMaxClick = async () => {
     if (selectedTab === "stake") {
       // Leave some SOL for transaction fees
-      const maxStakeAmount = Math.max(0, balance - await stakingService.getMinimumBalanceForRentExemption());
+      const maxStakeAmount = Math.max(0, balance - 0.01);
       setAmount(maxStakeAmount.toString());
     } else {
       // For unstaking, show total staked amount
-      setAmount(stakingStats.totalStaked.toString());
+      setAmount(stakeAccount?.amountStaked.toString() ?? "0");
     }
   };
 
@@ -322,7 +322,7 @@ export default function StakeWidget() {
     isValidSolAmount(amount) &&
     !isProcessing &&
     !isLoading &&
-    (selectedTab === "stake" ? parseFloat(amount) <= balance - 0.01 : parseFloat(amount) <= stakingStats.totalStaked);
+    (selectedTab === "stake" ? parseFloat(amount) <= balance - 0.01 : parseFloat(amount) <= (stakeAccount?.amountStaked ?? 0));
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
@@ -341,10 +341,12 @@ export default function StakeWidget() {
   }
 
   useEffect(() => {
-    if (deactivationStatus.withdrawing) {
-      setAmount(formatSol(stakingStats.totalStaked));
-    }
-  }, [stakeAccount, deactivationStatus.withdrawing]);
+    const updateAmount = async () => {
+      if (deactivationStatus.withdrawing) {
+      setAmount(formatSol(await stakingService.getBalance(new PublicKey(unstakeAccount!))));
+    }}
+    updateAmount();
+  }, [deactivationStatus.withdrawing, unstakeAccount]);
 
   return (
     <div className="wrapper flex items-center justify-center w-full">
@@ -618,7 +620,7 @@ export default function StakeWidget() {
                   {(stakeAccount && deactivationStatus.withdrawing) ? null: <div className="flex items-center gap-x-1.5 text-tertiary">
                     <Icon name="WalletSmall" />
                     <span className="text-sm font-mono">
-                      {`${formatSol(!unstakeAccount ? 0: stakingStats.totalStaked ?? 0)} SOL staked`}
+                      {`${formatSol(!unstakeAccount ? 0: stakeAccount?.amountStaked ?? 0)} SOL staked`}
                     </span>
                   </div>}
                 </div>
@@ -634,9 +636,9 @@ export default function StakeWidget() {
                   </div>
                   {(stakeAccount && deactivationStatus.withdrawing) ? <input
                     className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                    placeholder={stakingStats.totalStaked.toString() ?? (0).toString()}
+                    placeholder={stakeAccount?.amountStaked.toString() ?? (0).toString()}
                     disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
-                    value={formatSol(stakingStats.totalStaked)}
+                    value={formatSol(stakeAccount?.amountStaked ?? 0)}
                     readOnly
                     /> : <input
                     className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
