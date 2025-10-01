@@ -2,6 +2,7 @@ import { createTRPCRouter, publicProcedure } from "../trpc";
 import { Connection, GetProgramAccountsResponse, LAMPORTS_PER_SOL, PublicKey, StakeProgram } from "@solana/web3.js";
 import { z } from "zod";
 import { getMetaDecoder, getStakeStateAccountDecoder, getStakeDecoder } from "@solana-program/stake"
+import { lamportsToSol } from "@/utils/solana";
 
 const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, {
   commitment: "confirmed",
@@ -148,13 +149,14 @@ export const stakeRouter = createTRPCRouter({
     }))
     .query(async ({ input }) => {
       const stakeAccount = await connection.getAccountInfo(new PublicKey(input.address));
+      const amountStaked = await connection.getBalance(new PublicKey(input.address));
       const statusDecoder = getStakeStateAccountDecoder();
       const stakeDecoder = getStakeDecoder();
       const metaDecoder = getMetaDecoder();
 
       return {
         address: input.address,
-        amountStaked: Number(stakeDecoder.decode(Buffer.from(stakeAccount!.data), 124).delegation.stake) / LAMPORTS_PER_SOL,
+        amountStaked: lamportsToSol(amountStaked),
         stakingAuthority: metaDecoder.decode(Buffer.from(stakeAccount!.data), 4).authorized.staker,
         withdrawAuthority: metaDecoder.decode(Buffer.from(stakeAccount!.data), 4).authorized.withdrawer,
         status: statusDecoder.decode(Buffer.from(stakeAccount!.data)).state.__kind,
