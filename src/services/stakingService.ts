@@ -236,13 +236,16 @@ export class StakingService {
     signTransaction: (transaction: Transaction) => Promise<Transaction>
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
     try {
-
       let newStakeAccount: Keypair | undefined = undefined;
 
-      const stakeAccountInfo = await this.getStakingStats(new PublicKey(stakeAccount));
+      const totalStaked = await this.getBalance(new PublicKey(stakeAccount));
       const transaction = new Transaction();
 
-      if (withdrawLamports < stakeAccountInfo.totalStaked) {
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPublicKey;
+
+      if (solToLamports(withdrawLamports) < solToLamports(totalStaked)) {
         // Partial withdraw: split first
         const rentExemption =
           await this.connection.getMinimumBalanceForRentExemption(
@@ -252,41 +255,30 @@ export class StakingService {
         newStakeAccount = Keypair.generate();
 
         transaction.add(
-          SystemProgram.createAccount({
-            fromPubkey: userPublicKey,
-            newAccountPubkey: newStakeAccount.publicKey,
-            lamports: withdrawLamports,
-            space: StakeProgram.space,
-            programId: StakeProgram.programId,
-          })
+          StakeProgram.split({
+            stakePubkey: stakeAccount,
+            authorizedPubkey: userPublicKey,
+            splitStakePubkey: newStakeAccount.publicKey,
+            lamports:
+              solToLamports(totalStaked) -
+              solToLamports(withdrawLamports)
+          },
+          rentExemption
+        )
         );
-
-        transaction.add(
-          StakeProgram.split(
-            {
-              stakePubkey: stakeAccount,
-              authorizedPubkey: userPublicKey,
-              splitStakePubkey: newStakeAccount.publicKey,
-              lamports: withdrawLamports,
-            },
-            rentExemption
-          )
-        );
-        // The new account must be a signer for the transaction
-        transaction.partialSign(newStakeAccount);
-
       }
 
       transaction.add(
         StakeProgram.deactivate({
-          stakePubkey: newStakeAccount ? newStakeAccount.publicKey : stakeAccount,
+          stakePubkey: stakeAccount,
           authorizedPubkey: userPublicKey,
         })
       );
 
-      const { blockhash } = await this.connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = userPublicKey;
+      // The new account must be a signer for the transaction
+      if (newStakeAccount) {
+        transaction.partialSign(newStakeAccount);
+      }
 
       const signedTransaction = await signTransaction(transaction);
 
