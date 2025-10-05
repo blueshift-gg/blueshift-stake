@@ -34,7 +34,7 @@ type PoolType = {
 const PoolCarousel = () => {
   const [hoveredPool, setHoveredPool] = useState<string | null>(null);
 
-  const { data: allPools, isLoading, isError } = trpc.stake.pools.useQuery();
+  const { data: allPools } = trpc.stake.pools.useQuery();
 
   // Need a way to map icons and colours up when API is hooked up
   const knownPools: PoolType[] = [

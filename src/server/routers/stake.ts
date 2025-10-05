@@ -1,5 +1,5 @@
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { Connection, GetProgramAccountsResponse, LAMPORTS_PER_SOL, PublicKey, StakeProgram } from "@solana/web3.js";
+import { Connection, GetProgramAccountsResponse, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { z } from "zod";
 import { getMetaDecoder, getStakeStateAccountDecoder, getStakeDecoder } from "@solana-program/stake"
 import { lamportsToSol } from "@/utils/solana";

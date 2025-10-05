@@ -6,8 +6,6 @@ import {
   Authorized,
   Lockup,
   Keypair,
-  LAMPORTS_PER_SOL,
-  SystemProgram,
 } from '@solana/web3.js';
 import { connection, VALIDATOR_VOTE_ACCOUNT, solToLamports, lamportsToSol, formatSol } from '@/utils/solana';
 import { getStakeDecoder } from '@solana-program/stake';

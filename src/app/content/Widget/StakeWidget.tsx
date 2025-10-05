@@ -30,7 +30,6 @@ export default function StakeWidget() {
   const {
     isConnected,
     balance,
-    stakingStats,
     isLoading,
     refreshData
   } = useStakingStore();
@@ -335,9 +334,9 @@ export default function StakeWidget() {
   }, [transactionStatus]);
 
   const deactivationStatus = {
-    active: stakeAccount?.deactivationEpoch === "18446744073709551615",
-    deactivating: stakeAccount?.deactivationEpoch !== "18446744073709551615" && currentEpoch! < parseInt(stakeAccount?.deactivationEpoch!) + 1,
-    withdrawing: parseInt(stakeAccount?.deactivationEpoch!) + 1 <= currentEpoch!,
+    active: !!stakeAccount && stakeAccount.deactivationEpoch === "18446744073709551615",
+    deactivating: !!currentEpoch && !!stakeAccount && stakeAccount.deactivationEpoch !== "18446744073709551615" && (currentEpoch < parseInt(stakeAccount.deactivationEpoch!) + 1),
+    withdrawing: !!currentEpoch && !!stakeAccount && (parseInt(stakeAccount.deactivationEpoch!) + 1 <= currentEpoch),
   }
 
   useEffect(() => {
@@ -620,7 +619,7 @@ export default function StakeWidget() {
               <div className="flex flex-col gap-y-1">
                 <div className="w-full flex items-center justify-between px-1.5">
                   <span className="font-medium">{t("ui.amount")}</span>
-                  {(stakeAccount && deactivationStatus.withdrawing) ? null: <div className="flex items-center gap-x-1.5 text-tertiary">
+                  {(deactivationStatus.withdrawing) ? null: <div className="flex items-center gap-x-1.5 text-tertiary">
                     <Icon name="WalletSmall" />
                     <span className="text-sm font-mono">
                       {`${formatSol(!unstakeAccount ? 0: stakeAccount?.amountStaked ?? 0)} SOL staked`}
@@ -637,10 +636,10 @@ export default function StakeWidget() {
                     />
                     <span className="leading-[100%]">SOL</span>
                   </div>
-                  {(stakeAccount && deactivationStatus.withdrawing) ? <input
+                  {(deactivationStatus.withdrawing) ? <input
                     className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                     placeholder={stakeAccount?.amountStaked.toString() ?? (0).toString()}
-                    disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                    disabled={!isConnected || isLoading || (!unstakeAccount) || deactivationStatus.deactivating}
                     value={formatSol(stakeAccount?.amountStaked ?? 0)}
                     readOnly
                     /> : <input
@@ -695,7 +694,7 @@ export default function StakeWidget() {
               { !isConnected && (
                 <WalletMultiButton isLoading={isLoading} />
               )}
-              { (!stakeAccount || (stakeAccount && deactivationStatus.active)) && (
+              { (!stakeAccount || (deactivationStatus.active)) && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
@@ -705,7 +704,7 @@ export default function StakeWidget() {
                     onClick={handleDeactivate}
                   />
                 )}
-              { (stakeAccount && deactivationStatus.deactivating) && (
+              { (deactivationStatus.deactivating) && (
                   <Button
                     className="w-full relative"
                     label="Withdraw in Next Epoch"
@@ -714,7 +713,7 @@ export default function StakeWidget() {
                     onClick={undefined}
                   />
                 )}
-              { stakeAccount && deactivationStatus.withdrawing && (
+              { deactivationStatus.withdrawing && (
                   <Button
                     icon={"ArrowLeft"}
                     className="w-full relative"
