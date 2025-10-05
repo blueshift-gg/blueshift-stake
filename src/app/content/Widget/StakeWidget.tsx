@@ -513,7 +513,7 @@ export default function StakeWidget() {
           <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
             {/* Merge Section */}
             <div className="flex flex-col gap-y-4">
-              <h3 className="text-lg font-semibold text-primary mb-1">{t("ui.merge") || "Merge"}</h3>
+              <h3 className="text-lg font-semibold text-primary mb-1">{t("ui.merge") || "Merge"} (Coming Soon)</h3>
               <div className="flex flex-col gap-3">
                 {/* First Dropdown */}
                 <div className="flex-1">
@@ -525,6 +525,7 @@ export default function StakeWidget() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
                     value={mergeSource}
                     onChange={e => setMergeSource(e.target.value !== '' ? e.target.value : undefined)}
+                    disabled={true}
                   >
                     <option value={''}>Select Source</option>
                     {stakeAccounts?.filter((account) => {
@@ -550,6 +551,7 @@ export default function StakeWidget() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
                     value={mergeDestination}
                     onChange={e => setMergeDestination(e.target.value !== '' ? e.target.value : undefined)}
+                    disabled={true}
                   >
                     <option value={''}>Select Destination</option>
                     {stakeAccounts?.filter((account) => {
@@ -569,14 +571,15 @@ export default function StakeWidget() {
                   className="w-full mt-4"
                   size="lg"
                   label={t("ui.merge") || "Merge"}
-                  disabled={
-                    !isConnected ||
-                    isLoading ||
-                    isProcessing ||
-                    !mergeSource ||
-                    !mergeDestination ||
-                    mergeSource === mergeDestination
-                  }
+                  // disabled={
+                  //   !isConnected ||
+                  //   isLoading ||
+                  //   isProcessing ||
+                  //   !mergeSource ||
+                  //   !mergeDestination ||
+                  //   mergeSource === mergeDestination
+                  // }
+                  disabled={true}
                   onClick={handleMerge}
                 />
               </div>
