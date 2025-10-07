@@ -125,7 +125,7 @@ export class StakingService {
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
     try {
       const amountLamports = solToLamports(amount);
-      const minimumAmount = 0.001 + await this.getMinimumBalanceForRentExemption(); // Minimum for rent exemption
+      const minimumAmount = solToLamports(0.001) + await this.getMinimumBalanceForRentExemption(); // Minimum for rent exemption
 
       if (amountLamports < minimumAmount) {
         return {
