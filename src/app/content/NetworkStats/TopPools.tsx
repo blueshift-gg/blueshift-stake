@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { rgbToRgba, shortenString } from "@/utils/utils";
@@ -82,7 +83,7 @@ const PoolCarousel = () => {
     },
     {
       name: "Double Zero",
-      icon: "icons/doublezero.svg",
+      icon: "/icons/doublezero.svg",
       amountStaked: 0,
       color: "rgb(0, 255, 163)",
       stakingAuthority: "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi"
@@ -168,7 +169,13 @@ const PoolCarousel = () => {
                   size={4}
                   strokeWidth={1}
                 />
-                 <img src={pool.icon} alt={pool.name} className="w-8" />
+                <Image
+                  src={pool.icon}
+                  alt={pool.name ?? "Pool icon"}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
               </div>  : null}
               <div className="flex flex-col">
                 <span className="font-medium text-primary">{pool.name}</span>

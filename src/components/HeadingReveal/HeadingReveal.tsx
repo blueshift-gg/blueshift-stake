@@ -27,7 +27,7 @@ export default function HeadingReveal({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const localeSegmentation = useSplitLocaleBy();
-  splitBy ??= localeSegmentation;
+  const resolvedSplitBy = splitBy ?? localeSegmentation;
 
   useEffect(() => {
     document.fonts.ready.then(() => {
@@ -42,7 +42,7 @@ export default function HeadingReveal({
 
       // Animate the words in the h1
       animate(
-        splitBy === "words" ? words : chars,
+        resolvedSplitBy === "words" ? words : chars,
         {
           backgroundColor: [
             "rgba(255,255,255,0)",
@@ -68,7 +68,7 @@ export default function HeadingReveal({
         }
       );
     });
-  }, []);
+  }, [headingLevel, resolvedSplitBy, cursorColor, color, baseDelay, speed, splitBy, localeSegmentation]);
 
   return (
     <div ref={containerRef}>
