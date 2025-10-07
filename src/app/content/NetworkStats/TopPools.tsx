@@ -105,7 +105,7 @@ const PoolCarousel = () => {
     if (pool.stakingAuthority && allPoolsStakingAuthorities.includes(pool.stakingAuthority)) {
       return  {
         ...pool,
-        amountStaked: pool.amountStaked += (allPools?.filter((newPool) => newPool.stakingAuthority === pool.stakingAuthority)[0].amountStaked ?? 0),
+        amountStaked: pool.amountStaked + (allPools?.filter((newPool) => newPool.stakingAuthority === pool.stakingAuthority)[0].amountStaked ?? 0),
       }
     } else {
       return {
