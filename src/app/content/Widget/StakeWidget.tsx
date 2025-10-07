@@ -161,7 +161,7 @@ export default function StakeWidget() {
       return;
     }
 
-    if (!stakeAccount || unstakeAmount > (stakeAccount.amountStaked + await stakingService.getMinimumBalanceForRentExemption() || 0)) {
+    if (!stakeAccount || unstakeAmount > ((stakeAccount.amountStaked + await stakingService.getMinimumBalanceForRentExemption()) || 0)) {
       setTransactionStatus({
         type: 'error',
         message: 'Insufficient staked SOL in selected account'
