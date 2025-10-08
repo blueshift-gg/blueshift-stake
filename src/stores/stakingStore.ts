@@ -31,10 +31,11 @@ interface StakingState {
   // Validator-specific data
   validatorStats: {
     totalStake: number;
-    commission: number;
     apy: number;
     nextLeaderSlot: number | null;
   };
+  validatorStatsLoading: boolean;
+  validatorStatsLoaded: boolean;
 
   // Actions
   setWallet: (publicKey: PublicKey | null) => void;
@@ -69,10 +70,11 @@ export const useStakingStore = create<StakingState>((set, get) => ({
   },
   validatorStats: {
     totalStake: 0,
-    commission: 0,
     apy: 0,
     nextLeaderSlot: null,
   },
+  validatorStatsLoading: true,
+  validatorStatsLoaded: false,
 
   // Actions
   setWallet: (publicKey) => {
@@ -125,11 +127,20 @@ export const useStakingStore = create<StakingState>((set, get) => ({
   },
 
   fetchValidatorStats: async () => {
+    const { validatorStatsLoaded } = get();
+    if (!validatorStatsLoaded) {
+      set({ validatorStatsLoading: true });
+    }
     try {
       const validatorStats = await validatorService.getOurValidatorInfo();
-      set({ validatorStats });
+      set({
+        validatorStats,
+        validatorStatsLoading: false,
+        validatorStatsLoaded: true,
+      });
     } catch (error) {
       console.error('Error fetching validator stats:', error);
+      set({ validatorStatsLoading: false });
     }
   },
 

@@ -13,7 +13,12 @@ import Image from "next/image";
 
 export default function NetworkStats() {
   const t = useTranslations();
-  const { networkStats, validatorStats, fetchValidatorStats } = useStakingStore();
+  const {
+    networkStats,
+    validatorStats,
+    validatorStatsLoading,
+    fetchValidatorStats,
+  } = useStakingStore();
 
   // Fetch network and validator stats on component mount
   useEffect(() => {
@@ -34,6 +39,11 @@ export default function NetworkStats() {
     const currentSlot = networkStats.currentEpoch * 432000; // Approximate slots per epoch
     const slotsRemaining = validatorStats.nextLeaderSlot - currentSlot;
     return slotsRemaining > 0 ? `${slotsRemaining} slots` : "Soon";
+  };
+
+  const formatPercent = (value: number, digits = 2) => {
+    const numeric = Number.isFinite(value) ? value : 0;
+    return `${Math.max(numeric, 0).toFixed(digits)}%`;
   };
 
   return (
@@ -94,12 +104,20 @@ export default function NetworkStats() {
             )}
           </StatCard>
           <StatCard title="Total Staked">
-            <span>{formatSol(validatorStats.totalStake, 0)}</span>
-            <Badge
-              color="rgb(153, 69, 255)"
-              value="SOL"
-              icon="/icons/sol.svg"
-            />
+            <span>
+              {validatorStatsLoading ? (
+                <span className="animate-pulse text-tertiary">Loading…</span>
+              ) : (
+                formatSol(validatorStats.totalStake, 0)
+              )}
+            </span>
+            {!validatorStatsLoading && (
+              <Badge
+                color="rgb(153, 69, 255)"
+                value="SOL"
+                icon="/icons/sol.svg"
+              />
+            )}
           </StatCard>
           <StatCard title="Next Leader Slot">
             <span>{getNextLeaderDisplay()}</span>
@@ -110,11 +128,13 @@ export default function NetworkStats() {
             />
           </StatCard>
           <StatCard title="APY">
-            <span>6.1%</span>
-            <Badge
-              color="rgb(0, 230, 107)"
-              value="0.1%"
-            />
+            <span>
+              {validatorStatsLoading
+                ? (
+                  <span className="animate-pulse text-tertiary">Loading…</span>
+                )
+                : formatPercent(validatorStats.apy)}
+            </span>
           </StatCard>
         </div>
       </div>
