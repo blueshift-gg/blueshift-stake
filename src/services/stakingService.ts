@@ -130,7 +130,7 @@ export class StakingService {
       if (amountLamports < minimumAmount) {
         return {
           success: false,
-          error: `Amount too small. Minimum stake is ${formatSol(minimumAmount)} SOL`,
+          error: `Amount too small. Minimum stake is ${formatSol(lamportsToSol(minimumAmount))} SOL`,
         };
       }
 
