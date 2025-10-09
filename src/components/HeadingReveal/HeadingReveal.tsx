@@ -68,7 +68,7 @@ export default function HeadingReveal({
         }
       );
     });
-  }, [headingLevel, resolvedSplitBy, cursorColor, color, baseDelay, speed, splitBy, localeSegmentation]);
+  }, [headingLevel, resolvedSplitBy, cursorColor, color, baseDelay, speed]);
 
   return (
     <div ref={containerRef}>
