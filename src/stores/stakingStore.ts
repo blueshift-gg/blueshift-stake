@@ -87,16 +87,10 @@ export const useStakingStore = create<StakingState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const [balance, stakeAccounts, stakingStats] = await Promise.all([
-        stakingService.getBalance(publicKey),
-        stakingService.getStakeAccounts(publicKey),
-        stakingService.getStakingStats(publicKey),
-      ]);
+      const balance = await stakingService.getBalance(publicKey);
 
       set({
         balance,
-        stakeAccounts,
-        stakingStats,
         lastUpdated: Date.now(),
         isLoading: false,
       });

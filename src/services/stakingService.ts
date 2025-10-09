@@ -193,36 +193,6 @@ export class StakingService {
     }
   }
 
-  // Get staking statistics for user
-  async getStakingStats(publicKey: PublicKey): Promise<StakingStats> {
-    try {
-      const [balance, stakeAccounts] = await Promise.all([
-        this.getBalance(publicKey),
-        this.getStakeAccounts(publicKey),
-      ]);
-
-      const totalStaked = stakeAccounts.reduce(
-        (sum, account) => sum + lamportsToSol(account.lamports),
-        0
-      );
-
-      const apy = 6.1;
-
-      return {
-        totalStaked,
-        availableBalance: balance,
-        apy,
-      };
-    } catch (error) {
-      console.error("Error fetching staking stats:", error);
-      return {
-        totalStaked: 0,
-        availableBalance: 0,
-        apy: 0,
-      };
-    }
-  }
-
   /**
    * Deactivate a stake account.
    * Returns the transaction signature if successful.
@@ -236,7 +206,7 @@ export class StakingService {
     try {
       let newStakeAccount: Keypair | undefined = undefined;
 
-      const totalStaked = await this.getBalance(new PublicKey(stakeAccount));
+      const totalStaked = await this.getBalance(stakeAccount);
       const transaction = new Transaction();
 
       const { blockhash } = await this.connection.getLatestBlockhash();
@@ -323,7 +293,7 @@ export class StakingService {
         throw new Error("Stake account is still in cooldown. Please wait until the deactivation epoch has passed.");
       }
 
-      const stakeAmountLamports = (await this.getStakingStats(new PublicKey(stakeAccount))).availableBalance;
+      const stakeAmountLamports = await this.getBalance(stakeAccount);
       const withdrawLamports = solToLamports(stakeAmountLamports);
 
       const transaction = new Transaction();
