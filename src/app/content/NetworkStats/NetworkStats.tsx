@@ -250,17 +250,19 @@ export default function NetworkStats() {
           <StatCard title="Next Leader Slot">
             {shouldShowNextLeaderLoading ? (
               <span className="animate-pulse text-tertiary">Loading…</span>
+            ) : isValidatorError ? (
+              <span className="text-tertiary">N/A</span>
             ) : (
-              <>
-                <span>{getNextLeaderDisplay()}</span>
+              <div className="flex w-full items-center gap-x-3 gap-y-2">
+                <span className="whitespace-nowrap leading-none">
+                  {getNextLeaderDisplay()}
+                </span>
                 <Badge
-                  className="hidden sm:flex"
+                  className="hidden sm:inline-flex ml-auto flex-shrink-0"
                   color="rgb(173, 185, 210)"
-                  value={
-                    isValidatorError ? "Error" : `${nextScheduledSlot ?? "TBD"}`
-                  }
+                  value={`${nextScheduledSlot ?? "TBD"}`}
                 />
-              </>
+              </div>
             )}
           </StatCard>
           <StatCard title="APY">
