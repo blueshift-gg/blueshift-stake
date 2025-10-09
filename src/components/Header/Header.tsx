@@ -10,7 +10,6 @@ import { routing } from "@/i18n/routing";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 
 import Logo from "@/components/Logo/Logo";
-import { useAuth } from "@/hooks/useAuth";
 import Button from "@/components/Button/Button";
 import LogoGlyph from "@/components/Logo/LogoGlyph";
 
@@ -22,9 +21,6 @@ export default function HeaderContent() {
   const { locales } = routing;
   const router = useRouter();
   const languageDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Wallet and Auth Hook Logic
-  const auth = useAuth();
 
   const handleLanguageChange = (newLocale: string) => {
     router.replace(pathname, { locale: newLocale });
@@ -92,15 +88,9 @@ export default function HeaderContent() {
             </AnimatePresence>
           </div>
 
-          {/* Wallet Multi Button and Error Display */}
+          {/* Wallet Multi Button */}
           <div className="relative">
-            <WalletMultiButton
-              status={auth.status}
-              address={auth.publicKey?.toBase58()}
-              onSignIn={auth.login}
-              onSignOut={auth.logout}
-              // disabled={walletButtonIsDisabled}
-            />
+            <WalletMultiButton />
           </div>
         </div>
       </div>

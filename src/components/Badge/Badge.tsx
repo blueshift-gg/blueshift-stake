@@ -1,3 +1,4 @@
+import Image from "next/image";
 import classNames from "classnames";
 import CrosshairCorners from "../Crosshair/CrosshairCorners";
 import { rgbToRgba } from "@/utils/utils";
@@ -30,7 +31,15 @@ export default function Badge({
         strokeWidth={1}
         corners={["top-left", "bottom-right"]}
       />
-      {icon && <img src={icon} alt="Icon" className="w-4 h-4" />}
+      {icon && (
+        <Image
+          src={icon}
+          alt="Badge icon"
+          width={16}
+          height={16}
+          className="object-contain"
+        />
+      )}
       <span className="text-current text-sm leading-[100%]">{value}</span>
     </div>
   );

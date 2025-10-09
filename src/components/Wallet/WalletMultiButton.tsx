@@ -1,53 +1,51 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import Button from "../Button/Button";
 import DecryptedText from "../HeadingReveal/DecryptText";
-import { AuthState } from "@/hooks/useAuth";
 import { motion } from "motion/react";
 import { anticipate } from "motion";
 import Icon from "../Icon/Icon";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useStakingStore } from "@/stores/stakingStore";
 
 interface WalletButtonProps {
-  status: AuthState["status"];
-  address?: string;
-  onSignIn: () => void;
-  onSignOut: () => void;
   disabled?: boolean;
   isLoading?: boolean;
 }
 
 export default function WalletMultiButton({
-  status,
-  address,
-  onSignIn,
-  onSignOut,
   disabled = false,
   isLoading = false,
 }: WalletButtonProps) {
   const [isHoveringLocal, setIsHoveringLocal] = useState<boolean>(false);
+  const { publicKey, disconnect, connected, connecting } = useWallet();
+  const { setVisible: setModalVisible } = useWalletModal();
+  const { setWallet } = useStakingStore();
 
-  const showDisconnectOverlay = isHoveringLocal && status === "signed-in";
+  // Sync wallet state with staking store
+  useEffect(() => {
+    setWallet(connected ? publicKey : null);
+  }, [connected, publicKey, setWallet]);
+
+  const showDisconnectOverlay = isHoveringLocal && connected;
 
   const getButtonLabel = useCallback(() => {
-    if (status === "signing-in") return "Signing In...";
-    if (status === "signed-in" && address) {
-      return `${address.slice(0, 4)}...${address.slice(-4)}`;
+    if (connecting) return "Connecting...";
+    if (connected && publicKey) {
+      return `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`;
     }
-
     return "Connect Wallet";
-  }, [address, status]);
+  }, [connected, publicKey, connecting]);
 
   const buttonLabel = getButtonLabel();
 
   const handleClick = useCallback(() => {
-    if (status === "signed-in") {
-      onSignOut();
+    if (connected) {
+      disconnect();
     } else {
-      onSignIn();
+      setModalVisible(true);
     }
-  }, [status, onSignIn, onSignOut]);
-
-  // const walletButtonIsDisabled = connecting || disconnecting || authLoading;
-  // const walletButtonIsLoading = authLoading;
+  }, [connected, disconnect, setModalVisible]);
 
   return (
     <div
@@ -56,7 +54,7 @@ export default function WalletMultiButton({
       className="relative"
     >
       <Button
-        disabled={disabled || isLoading}
+        disabled={disabled || isLoading || connecting}
         label={buttonLabel}
         icon="Wallet"
         variant="primary"

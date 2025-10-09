@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 
 interface DecryptedTextProps {
@@ -26,6 +26,11 @@ export default function DecryptedText({
     new Set()
   );
   const [isExiting, setIsExiting] = useState<boolean>(false);
+  const revealedIndicesRef = useRef(revealedIndices);
+
+  useEffect(() => {
+    revealedIndicesRef.current = revealedIndices;
+  }, [revealedIndices]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -83,7 +88,7 @@ export default function DecryptedText({
           }
         });
       }, speed);
-    } else if (revealedIndices.size > 0) {
+  } else if (revealedIndicesRef.current.size > 0) {
       setIsExiting(true);
       setIsScrambling(true);
       interval = setInterval(() => {
@@ -103,7 +108,13 @@ export default function DecryptedText({
       }, speed);
     } else {
       setDisplayText(text);
-      setRevealedIndices(new Set());
+      setRevealedIndices((prev) => {
+        if (prev.size === 0) {
+          return prev;
+        }
+
+        return new Set();
+      });
       setIsScrambling(false);
       setIsExiting(false);
     }
