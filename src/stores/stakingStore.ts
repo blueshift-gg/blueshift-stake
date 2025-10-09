@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { PublicKey } from '@solana/web3.js';
 import { StakeAccount, StakingStats, stakingService } from '@/services/stakingService';
-import { validatorService } from '@/services/validatorService';
 
 interface StakingState {
   // Wallet state
@@ -29,18 +28,10 @@ interface StakingState {
   };
 
   // Validator-specific data
-  validatorStats: {
-    totalStake: number;
-    apy: number;
-    nextLeaderSlot: number | null;
-  };
-  validatorStatsLoading: boolean;
-  validatorStatsLoaded: boolean;
 
   // Actions
   setWallet: (publicKey: PublicKey | null) => void;
   fetchUserData: () => Promise<void>;
-  fetchValidatorStats: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   refreshData: () => Promise<void>;
@@ -68,14 +59,6 @@ export const useStakingStore = create<StakingState>((set, get) => ({
     stakingRatio: 0,
     tps: 0,
   },
-  validatorStats: {
-    totalStake: 0,
-    apy: 0,
-    nextLeaderSlot: null,
-  },
-  validatorStatsLoading: true,
-  validatorStatsLoaded: false,
-
   // Actions
   setWallet: (publicKey) => {
     set({
@@ -126,36 +109,15 @@ export const useStakingStore = create<StakingState>((set, get) => ({
     }
   },
 
-  fetchValidatorStats: async () => {
-    const { validatorStatsLoaded } = get();
-    if (!validatorStatsLoaded) {
-      set({ validatorStatsLoading: true });
-    }
-    try {
-      const validatorStats = await validatorService.getOurValidatorInfo();
-      set({
-        validatorStats,
-        validatorStatsLoading: false,
-        validatorStatsLoaded: true,
-      });
-    } catch (error) {
-      console.error('Error fetching validator stats:', error);
-      set({ validatorStatsLoading: false });
-    }
-  },
-
   setLoading: (isLoading) => set({ isLoading }),
 
   setError: (error) => set({ error }),
 
   refreshData: async () => {
-    const { publicKey, fetchUserData, fetchValidatorStats } = get();
+    const { publicKey, fetchUserData } = get();
 
     if (publicKey) {
       await fetchUserData();
     }
-    await Promise.all([
-      fetchValidatorStats()
-    ]);
   },
 }));
