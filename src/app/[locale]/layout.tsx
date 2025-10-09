@@ -83,10 +83,12 @@ export default async function RootLayout({
         <WalletProvider>
           <TRPCProvider>
             <body
-              className={`${FunnelDisplay.variable} ${MontechV2.variable} antialiased`}
+              className={`${FunnelDisplay.variable} ${MontechV2.variable} antialiased flex min-h-dvh flex-col`}
             >
               <Header />
-              {children}
+              <main className="flex-1">
+                {children}
+              </main>
               <Footer />
             </body>
           </TRPCProvider>
