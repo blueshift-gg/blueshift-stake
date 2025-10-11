@@ -130,71 +130,87 @@ const PoolCarousel = () => {
 
   return (
     <div className="col-span-1 xl:col-span-6 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent)]">
-      <div className="flex items-center gap-x-2 w-full animate-infinite-scroll">
-        {duplicatedPools?.map((pool, index) => pool.amountStaked > 10 ? <motion.a
-            initial={{ opacity: 0, scale: 0.99 }}
-            animate={{
-              opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
-            }}
-            transition={{
-              duration: 1.5,
-              delay: index * 0.15,
-              ease: anticipate,
-            }}
-            onMouseEnter={() => setHoveredPool(pool.stakingAuthority)}
-            onMouseLeave={() => setHoveredPool(null)}
-            key={`${pool.name}-${index}`}
-            href={`https://solscan.io/account/${pool.stakingAuthority}`}
-            target="_blank"
-            className="cursor-pointer relative group/pool w-[400px] bg-background hover:bg-background-card/50 border border-border pr-4 py-2 pl-2 flex items-start justify-between flex-shrink-0"
-          >
-            <CrosshairCorners
-              className="!opacity-0 group-hover/pool:!opacity-100 transition-opacity duration-300"
-              size={6}
-              strokeWidth={1.5}
-              corners={["bottom-right"]}
-            />
-            <div className="flex items-center gap-x-2.5">
-              { pool.icon ? <div
-                className="p-2 relative flex items-center justify-center"
-                style={{
-                  border: `1px solid ${rgbToRgba(pool.color, 0.15)}`,
-                  boxShadow: `inset 0px 0px 6px ${rgbToRgba(pool.color, 0.2)}`,
-                  background: `linear-gradient(180deg, rgba(17, 20, 26, 0.5), rgba(17, 20, 26, 0.5)), ${rgbToRgba(pool.color, 0.04)}`,
-                  color: pool.color,
-                }}
-              >
-                <CrosshairCorners
-                  className="text-current"
-                  size={4}
-                  strokeWidth={1}
-                />
-                <Image
-                  src={pool.icon}
-                  alt={pool.name ?? "Pool icon"}
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                />
-              </div>  : null}
-              <div className="flex flex-col">
-                <span className="font-medium text-primary">{pool.name}</span>
-                <span className="font-mono text-sm text-tertiary flex items-center gap-x-1.5">
-                  { pool.stakingAuthority ? <DecryptedText
-                    isHovering={hoveredPool === pool.stakingAuthority}
-                    text={shortenString(pool.stakingAuthority, 10)}
-                  /> : null }
-                  <Icon name="ExternalLink" />
-                </span>
+      <div className="flex items-stretch gap-x-2 w-full animate-infinite-scroll">
+        {duplicatedPools?.map((pool, index) => {
+          if (pool.amountStaked <= 10) return null;
+
+          const hasStakingAuthority = Boolean(pool.stakingAuthority);
+
+          return (
+            <motion.a
+              initial={{ opacity: 0, scale: 0.99 }}
+              animate={{
+                opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
+              }}
+              transition={{
+                duration: 1.5,
+                delay: index * 0.15,
+                ease: anticipate,
+              }}
+              onMouseEnter={() => setHoveredPool(hasStakingAuthority ? pool.stakingAuthority : null)}
+              onMouseLeave={() => setHoveredPool(null)}
+              key={`${pool.name}-${index}`}
+              href={hasStakingAuthority ? `https://solscan.io/account/${pool.stakingAuthority}` : undefined}
+              target={hasStakingAuthority ? "_blank" : undefined}
+              rel={hasStakingAuthority ? "noreferrer" : undefined}
+              className={`relative group/pool w-[400px] bg-background hover:bg-background-card/50 border border-border p-3 flex items-start justify-between gap-x-3 flex-shrink-0 self-stretch ${hasStakingAuthority ? "cursor-pointer" : "cursor-default"}`}
+            >
+              <CrosshairCorners
+                className="!opacity-0 group-hover/pool:!opacity-100 transition-opacity duration-300"
+                size={6}
+                strokeWidth={1.5}
+                corners={["bottom-right"]}
+              />
+              <div className="flex items-center gap-x-2.5">
+                <div
+                  className={`flex items-center justify-center w-12 h-12 shrink-0 transition-opacity duration-200 ${pool.icon ? "opacity-100" : "opacity-0"}`}
+                  style={{
+                    border: `1px solid ${rgbToRgba(pool.color, 0.15)}`,
+                    boxShadow: `inset 0px 0px 6px ${rgbToRgba(pool.color, 0.2)}`,
+                    background: `linear-gradient(180deg, rgba(17, 20, 26, 0.5), rgba(17, 20, 26, 0.5)), ${rgbToRgba(pool.color, 0.04)}`,
+                    color: pool.color,
+                  }}
+                >
+                  <CrosshairCorners
+                    className="text-current"
+                    size={4}
+                    strokeWidth={1}
+                  />
+                  { pool.icon ? (
+                    <Image
+                      src={pool.icon}
+                      alt={pool.name ?? "Pool icon"}
+                      width={32}
+                      height={32}
+                      className="object-contain"
+                    />
+                  ) : null }
+                </div>
+                <div className="flex flex-col gap-y-1">
+                  <span className="font-medium text-primary">{pool.name}</span>
+                  <span className="font-mono text-sm text-tertiary flex items-center gap-x-1.5 h-6">
+                    { pool.stakingAuthority ? (
+                      <>
+                        <DecryptedText
+                          isHovering={hoveredPool === pool.stakingAuthority}
+                          text={shortenString(pool.stakingAuthority, 10)}
+                        />
+                        <Icon name="ExternalLink" />
+                      </>
+                    ) : (
+                      <span className="invisible">placeholder</span>
+                    ) }
+                  </span>
+                </div>
               </div>
-            </div>
-            <span className="font-mono text-primary text-lg">
+              <span className="font-mono text-primary text-lg self-center">
               { new Intl.NumberFormat("en-US", {
                 maximumFractionDigits: 2
               }).format(pool.amountStaked) } SOL
             </span>
-          </motion.a> : null
-        )}
+          </motion.a>
+          );
+        })}
       </div>
     </div>
   );
