@@ -19,12 +19,12 @@ const FunnelDisplay = Funnel_Display({
 const MontechV2 = localFont({
   src: [
     {
-      path: "../fonts/MontechV2-Medium.woff2",
+      path: "../fonts/MONTECHV02-Medium.woff2",
       weight: "500",
       style: "normal",
     },
     {
-      path: "../fonts/MontechV2-Medium.woff",
+      path: "../fonts/MONTECHV02-Medium.woff",
       weight: "500",
       style: "normal",
     },

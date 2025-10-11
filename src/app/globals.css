@@ -34,6 +34,11 @@ body {
   scroll-behavior: smooth;
 }
 
+.font-mono {
+  font-kerning: none;
+  font-feature-settings: "kern" 0;
+}
+
 .wrapper {
   @apply max-w-6xl mx-auto w-full px-4 relative;
   @apply md:px-6;
