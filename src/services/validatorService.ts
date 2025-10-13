@@ -126,64 +126,31 @@ export class ValidatorService {
         this.connection.getEpochInfo()
       ]);
 
+      // Update stake
       const activatedStakeSol = Number(stakeWizData.activated_stake ?? 0);
       const totalStake = Number.isFinite(activatedStakeSol) ? activatedStakeSol : 0;
 
+      // Update APY
       const totalApyValue = Number(stakeWizData.total_apy ?? 0);
       const apy = Number.isFinite(totalApyValue) && totalApyValue > 0 ? totalApyValue : 0;
-      const validatorIdentity = stakeWizData.identity ?? voteAccount;
 
-      // if (leaderSchedule && (!validatorIdentity || !leaderSchedule[validatorIdentity])) {
-      //   const voteAccountInfo = await this.connection.getParsedAccountInfo(VALIDATOR_VOTE_ACCOUNT);
-      //   const parsedInfo =
-      //     voteAccountInfo?.value && typeof voteAccountInfo.value.data !== 'string'
-      //       ? (voteAccountInfo.value.data as {
-      //         parsed: {
-      //           info?: { nodePubkey?: string };
-      //         };
-      //       })
-      //       : null;
-      //   const nodePubkey = parsedInfo?.parsed?.info?.nodePubkey;
-      //   if (nodePubkey) {
-      //     validatorIdentity = nodePubkey;
-      //   }
-      // }
-
-      // Find next leader slot using the identity account from vote data
+      // Compute slots for leader schedule
       const absoluteSlot = typeof epochInfo.absoluteSlot === 'number' ? epochInfo.absoluteSlot : 0;
       const slotIndex = typeof epochInfo.slotIndex === 'number' ? epochInfo.slotIndex : 0;
       const epochStartSlot = absoluteSlot - slotIndex;
-      const MAX_UPCOMING_SLOTS = 8;
-      const epochLength = typeof epochInfo.slotsInEpoch === 'number'
-        ? epochInfo.slotsInEpoch
-        : 0;
 
-      const leaderSlots = await this.getLeaderSlotsForIdentity(validatorIdentity);
+      const validatorIdentity = stakeWizData.identity;
       const upcomingLeaderSlots: number[] = [];
 
-      if (leaderSlots?.length) {
-        // Add remaining slots in the current epoch
-        for (const relativeSlot of leaderSlots) {
-          if (relativeSlot > slotIndex) {
-            upcomingLeaderSlots.push(epochStartSlot + relativeSlot);
-            if (upcomingLeaderSlots.length >= MAX_UPCOMING_SLOTS) {
-              break;
-            }
-          }
-        }
-      }
+        // Find scheduled slots for the current epoch
+      if (validatorIdentity !== undefined) {
+        const leaderSlots = await this.getLeaderSlotsForIdentity(validatorIdentity, epochInfo.absoluteSlot);
 
-      if (epochLength > 0 && upcomingLeaderSlots.length < MAX_UPCOMING_SLOTS) {
-        const nextEpochStartSlot = epochStartSlot + epochLength;
-        const nextEpochLeaderSlots = await this.getLeaderSlotsForIdentity(validatorIdentity, nextEpochStartSlot);
-
-        if (nextEpochLeaderSlots?.length) {
-          for (const relativeSlot of nextEpochLeaderSlots) {
-            upcomingLeaderSlots.push(nextEpochStartSlot + relativeSlot);
-            if (upcomingLeaderSlots.length >= MAX_UPCOMING_SLOTS) {
-              break;
-            }
-          }
+        if (Array.isArray(leaderSlots)) {
+          const upcomingSlots = leaderSlots
+            .filter(relativeSlot => relativeSlot > slotIndex)
+            .map(relativeSlot => epochStartSlot + relativeSlot);
+          upcomingLeaderSlots.push(...upcomingSlots);
         }
       }
 
