@@ -115,26 +115,39 @@ const PoolCarousel = () => {
     }
   })
 
-  allPools?.forEach((pool) => {
-    if (!knownPoolStakingAuthorities.includes(pool.stakingAuthority)) {
-      updatedPools.filter((pool) => pool.name === "Others")[0].amountStaked += pool.amountStaked
-    }
-  })
+  const othersPool = updatedPools.find((pool) => pool.name === "Others");
 
-  updatedPools = Array.prototype.concat(
-    updatedPools.filter((pool) => pool.name !== "Others").sort((a, b) => a.amountStaked - b.amountStaked).reverse(),
-    updatedPools.filter((pool) => pool.name === "Others")
-  );
+  allPools?.forEach((pool) => {
+    if (!knownPoolStakingAuthorities.includes(pool.stakingAuthority) && othersPool) {
+      othersPool.amountStaked += pool.amountStaked;
+    }
+  });
+
+  updatedPools = [
+    ...updatedPools
+      .filter((pool) => pool.name !== "Others")
+      .sort((a, b) => b.amountStaked - a.amountStaked),
+    ...updatedPools.filter((pool) => pool.name === "Others"),
+  ];
 
   const duplicatedPools = [...updatedPools, ...updatedPools]
 
   return (
     <div className="col-span-1 xl:col-span-6 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent)]">
       <div className="flex items-stretch gap-x-2 w-full animate-infinite-scroll">
-        {duplicatedPools?.map((pool, index) => {
+        {duplicatedPools.map((pool, index) => {
           if (pool.amountStaked <= 10) return null;
 
           const hasStakingAuthority = Boolean(pool.stakingAuthority);
+          const pointerClass = hasStakingAuthority ? "cursor-pointer" : "cursor-default";
+          const iconOpacityClass = pool.icon ? "opacity-100" : "opacity-0";
+          const cardHref = hasStakingAuthority
+            ? `https://solscan.io/account/${pool.stakingAuthority}`
+            : undefined;
+          const handleMouseEnter = hasStakingAuthority
+            ? () => setHoveredPool(pool.stakingAuthority)
+            : undefined;
+          const handleMouseLeave = hasStakingAuthority ? () => setHoveredPool(null) : undefined;
 
           return (
             <motion.a
@@ -147,13 +160,13 @@ const PoolCarousel = () => {
                 delay: index * 0.15,
                 ease: anticipate,
               }}
-              onMouseEnter={() => setHoveredPool(hasStakingAuthority ? pool.stakingAuthority : null)}
-              onMouseLeave={() => setHoveredPool(null)}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
               key={`${pool.name}-${index}`}
-              href={hasStakingAuthority ? `https://solscan.io/account/${pool.stakingAuthority}` : undefined}
+              href={cardHref}
               target={hasStakingAuthority ? "_blank" : undefined}
               rel={hasStakingAuthority ? "noreferrer" : undefined}
-              className={`relative group/pool w-[400px] bg-background hover:bg-background-card/50 border border-border p-3 flex items-start justify-between gap-x-3 flex-shrink-0 self-stretch ${hasStakingAuthority ? "cursor-pointer" : "cursor-default"}`}
+              className={`relative group/pool w-[400px] bg-background hover:bg-background-card/50 border border-border p-3 flex items-start justify-between gap-x-3 flex-shrink-0 ${pointerClass}`}
             >
               <CrosshairCorners
                 className="!opacity-0 group-hover/pool:!opacity-100 transition-opacity duration-300"
@@ -163,7 +176,7 @@ const PoolCarousel = () => {
               />
               <div className="flex items-center gap-x-2.5">
                 <div
-                  className={`flex items-center justify-center w-12 h-12 shrink-0 transition-opacity duration-200 ${pool.icon ? "opacity-100" : "opacity-0"}`}
+                  className={`relative flex items-center justify-center w-12 h-12 shrink-0 transition-opacity duration-200 ${iconOpacityClass}`}
                   style={{
                     border: `1px solid ${rgbToRgba(pool.color, 0.15)}`,
                     boxShadow: `inset 0px 0px 6px ${rgbToRgba(pool.color, 0.2)}`,
@@ -197,9 +210,7 @@ const PoolCarousel = () => {
                         />
                         <Icon name="ExternalLink" />
                       </>
-                    ) : (
-                      <span className="invisible">placeholder</span>
-                    ) }
+                    ) : null }
                   </span>
                 </div>
               </div>
