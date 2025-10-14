@@ -17,7 +17,7 @@ import { trpc } from "@/utils/trpc";
 import { PublicKey } from "@solana/web3.js";
 
 export default function StakeWidget() {
-  const [selectedTab, setSelectedTab] = useState<"stake" | "manage">("stake");
+  const [selectedTab, setSelectedTab] = useState<"stake" | "unstake" | "merge">("stake");
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<{
@@ -56,15 +56,23 @@ export default function StakeWidget() {
     refetchInterval: 5000,
   })
 
+  const tabs = [
+    { id: "stake", label: t("ui.stake") },
+    { id: "unstake", label: t("ui.unstake") || "Unstake" },
+    { id: "merge", label: t("ui.merge") || "Merge" },
+  ] as const;
+
   // Handle max button click
   const handleMaxClick = async () => {
     if (selectedTab === "stake") {
       // Leave some SOL for transaction fees
       const maxStakeAmount = Math.max(0, balance - 0.01);
       setAmount(maxStakeAmount.toString());
-    } else {
+    } else if (selectedTab === "unstake") {
       // For unstaking, show total staked amount
-      setAmount(stakeAccount?.amountStaked.toString() ?? "0");
+      setAmount(String(stakeAccount?.amountStaked ?? 0));
+    } else {
+      setAmount("");
     }
   };
 
@@ -317,11 +325,18 @@ export default function StakeWidget() {
     refetchStakeAccounts();
   };
 
-  const canPerformAction = isConnected &&
+  const canStakeAction = isConnected &&
     isValidSolAmount(amount) &&
     !isProcessing &&
     !isLoading &&
-    (selectedTab === "stake" ? parseFloat(amount) <= balance - 0.01 : parseFloat(amount) <= (stakeAccount?.amountStaked ?? 0));
+    parseFloat(amount) <= balance - 0.01;
+
+  const canUnstakeAction = isConnected &&
+    isValidSolAmount(amount) &&
+    !isProcessing &&
+    !isLoading &&
+    !!unstakeAccount &&
+    parseFloat(amount) <= (stakeAccount?.amountStaked ?? 0);
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
@@ -351,58 +366,34 @@ export default function StakeWidget() {
     <div className="wrapper flex items-center justify-center w-full">
       <div className="w-[550px] rounded-2xl flex flex-col overflow-hidden border border-border">
         <div className="rounded-t-[15px] flex items-center">
-          <button
-            key="stake"
-            onClick={() => setSelectedTab("stake")}
-            className={classNames(
-              "cursor-pointer hover:bg-background-card/50 transition px-6 py-3 relative font-mono text-tertiary",
-              selectedTab === "stake" && "!text-brand-primary"
-            )}
-          >
-            {selectedTab === "stake" && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0, 0.15, 0, 0.1, 0, 0.06] }}
-                  transition={{ duration: 0.5, ease: anticipate }}
-                  className="absolute inset-0 bg-brand-primary"
-                />
-                <CrosshairCorners
-                  size={6}
-                  strokeWidth={1.5}
-                  className="text-brand-primary"
-                  corners={["bottom-right"]}
-                />
-              </>
-            )}
-            <span>{t("ui.stake")}</span>
-          </button>
-          <button
-            key="manage"
-            onClick={() => setSelectedTab("manage")}
-            className={classNames(
-              "cursor-pointer hover:bg-background-card/50 transition px-6 py-3 relative font-mono text-tertiary",
-              selectedTab === "manage" && "!text-brand-primary"
-            )}
-          >
-            {selectedTab === "manage" && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0, 0.15, 0, 0.1, 0, 0.06] }}
-                  transition={{ duration: 0.5, ease: anticipate }}
-                  className="absolute inset-0 bg-brand-primary"
-                />
-                <CrosshairCorners
-                  size={6}
-                  strokeWidth={1.5}
-                  className="text-brand-primary"
-                  corners={["bottom-right"]}
-                />
-              </>
-            )}
-            <span>{t("ui.manage")}</span>
-          </button>
+          {tabs.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setSelectedTab(id)}
+              className={classNames(
+                "cursor-pointer hover:bg-background-card/50 transition px-6 py-3 relative font-mono text-tertiary",
+                selectedTab === id && "!text-brand-primary"
+              )}
+            >
+              {selectedTab === id && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.15, 0, 0.1, 0, 0.06] }}
+                    transition={{ duration: 0.5, ease: anticipate }}
+                    className="absolute inset-0 bg-brand-primary"
+                  />
+                  <CrosshairCorners
+                    size={6}
+                    strokeWidth={1.5}
+                    className="text-brand-primary"
+                    corners={["bottom-right"]}
+                  />
+                </>
+              )}
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
         { selectedTab === "stake" &&
           <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
@@ -496,7 +487,7 @@ export default function StakeWidget() {
                   icon={"Target"}
                   className="w-full relative"
                   label={"Stake SOL"}
-                  disabled={!canPerformAction}
+                  disabled={!canStakeAction}
                   isLoading={isProcessing}
                   onClick={handleStake}
                 />
@@ -508,13 +499,10 @@ export default function StakeWidget() {
             </div>
           </div>
         }
-        { selectedTab === "manage" &&
+        { selectedTab === "merge" && (
           <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
-            {/* Merge Section */}
             <div className="flex flex-col gap-y-4">
-              <h3 className="text-lg font-semibold text-primary mb-1">{t("ui.merge") || "Merge"} (Coming Soon)</h3>
               <div className="flex flex-col gap-3">
-                {/* First Dropdown */}
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeSource">
                     {t("ui.mergeSource") || "Source Account"}
@@ -528,7 +516,6 @@ export default function StakeWidget() {
                   >
                     <option value={''}>Select Source</option>
                     {stakeAccounts?.filter((account) => {
-                      // If mergeSource is set, exclude the account with address === mergeSource
                       if (mergeDestination) {
                         return account.address !== mergeDestination;
                       }
@@ -540,7 +527,6 @@ export default function StakeWidget() {
                     ))}
                   </select>
                 </div>
-                {/* Second Dropdown */}
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeDestination">
                     {t("ui.mergeDestination") || "Destination Account"}
@@ -554,7 +540,6 @@ export default function StakeWidget() {
                   >
                     <option value={''}>Select Destination</option>
                     {stakeAccounts?.filter((account) => {
-                      // If mergeSource is set, exclude the account with address === mergeSource
                       if (mergeSource) {
                         return account.address !== mergeSource;
                       }
@@ -566,25 +551,43 @@ export default function StakeWidget() {
                     ))}
                   </select>
                 </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-y-5 items-center justify-center">
+              {transactionStatus.type && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={classNames(
+                    "w-full p-3 rounded-lg text-sm font-mono text-center",
+                    transactionStatus.type === 'success'
+                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                      : "bg-red-500/20 text-red-400 border border-red-500/30"
+                  )}
+                >
+                  {transactionStatus.message}
+                </motion.div>
+              )}
+              {!isConnected ? (
+                <WalletMultiButton isLoading={isLoading} />
+              ) : (
                 <Button
-                  className="w-full mt-4"
+                  className="w-full relative"
                   size="lg"
                   label={t("ui.merge") || "Merge"}
-                  // disabled={
-                  //   !isConnected ||
-                  //   isLoading ||
-                  //   isProcessing ||
-                  //   !mergeSource ||
-                  //   !mergeDestination ||
-                  //   mergeSource === mergeDestination
-                  // }
                   disabled={true}
                   onClick={handleMerge}
                 />
-              </div>
+              )}
+              <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
+                <span className="text-secondary">{t("ui.disclaimer")}</span>
+                <span className="text-brand-secondary"> {t("ui.terms")}</span>
+              </span>
             </div>
-            {/* Unstake Section */}
-            <h3 className="text-lg font-semibold text-primary mb-1 mt-6">{t("ui.unstake") || "Unstake"}</h3>
+          </div>
+        )}
+        { selectedTab === "unstake" && (
+          <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
             <div className="flex flex-col gap-y-5">
               <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
                 <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
@@ -619,12 +622,14 @@ export default function StakeWidget() {
               <div className="flex flex-col gap-y-1">
                 <div className="w-full flex items-center justify-between px-1.5">
                   <span className="font-medium">{t("ui.amount")}</span>
-                  {(deactivationStatus.withdrawing) ? null: <div className="flex items-center gap-x-1.5 text-tertiary">
-                    <Icon name="WalletSmall" />
-                    <span className="text-sm font-mono">
-                      {`${formatSol(!unstakeAccount ? 0: stakeAccount?.amountStaked ?? 0)} SOL staked`}
-                    </span>
-                  </div>}
+                  {deactivationStatus.withdrawing ? null : (
+                    <div className="flex items-center gap-x-1.5 text-tertiary">
+                      <Icon name="WalletSmall" />
+                      <span className="text-sm font-mono">
+                        {`${formatSol(!unstakeAccount ? 0 : stakeAccount?.amountStaked ?? 0)} SOL staked`}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
                   <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
@@ -636,19 +641,23 @@ export default function StakeWidget() {
                     />
                     <span className="leading-[100%]">SOL</span>
                   </div>
-                  {(deactivationStatus.withdrawing) ? <input
-                    className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                    placeholder={stakeAccount?.amountStaked.toString() ?? (0).toString()}
-                    disabled={!isConnected || isLoading || (!unstakeAccount) || deactivationStatus.deactivating}
-                    value={formatSol(stakeAccount?.amountStaked ?? 0)}
-                    readOnly
-                    /> : <input
-                    className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                    placeholder="0.00"
-                    disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                  />}
+                  {deactivationStatus.withdrawing ? (
+                    <input
+                      className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
+                      placeholder={String(stakeAccount?.amountStaked ?? 0)}
+                      disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                      value={formatSol(stakeAccount?.amountStaked ?? 0)}
+                      readOnly
+                    />
+                  ) : (
+                    <input
+                      className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
+                      placeholder="0.00"
+                      disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                      value={amount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                    />
+                  )}
                   <Button
                     size="xs"
                     label={t("ui.max")}
@@ -691,45 +700,45 @@ export default function StakeWidget() {
                   {transactionStatus.message}
                 </motion.div>
               )}
-              { !isConnected && (
+              {!isConnected && (
                 <WalletMultiButton isLoading={isLoading} />
               )}
-              { (!stakeAccount || (deactivationStatus.active)) && (
-                  <Button
-                    icon={"ArrowLeft"}
-                    className="w-full relative"
-                    label="Undelegate Stake"
-                    disabled={!canPerformAction}
-                    isLoading={isProcessing}
-                    onClick={handleDeactivate}
-                  />
-                )}
-              { (deactivationStatus.deactivating) && (
-                  <Button
-                    className="w-full relative"
-                    label="Withdraw in Next Epoch"
-                    disabled={true}
-                    isLoading={isProcessing}
-                    onClick={undefined}
-                  />
-                )}
-              { deactivationStatus.withdrawing && (
-                  <Button
-                    icon={"ArrowLeft"}
-                    className="w-full relative"
-                    label="Withdraw Stake"
-                    disabled={!canPerformAction}
-                    isLoading={isProcessing}
-                    onClick={handleWithdraw}
-                  />
-                )}
+              {(!stakeAccount || deactivationStatus.active) && (
+                <Button
+                  icon={"ArrowLeft"}
+                  className="w-full relative"
+                  label="Undelegate Stake"
+                  disabled={!canUnstakeAction}
+                  isLoading={isProcessing}
+                  onClick={handleDeactivate}
+                />
+              )}
+              {deactivationStatus.deactivating && (
+                <Button
+                  className="w-full relative"
+                  label="Withdraw in Next Epoch"
+                  disabled={true}
+                  isLoading={isProcessing}
+                  onClick={undefined}
+                />
+              )}
+              {deactivationStatus.withdrawing && (
+                <Button
+                  icon={"ArrowLeft"}
+                  className="w-full relative"
+                  label="Withdraw Stake"
+                  disabled={!canUnstakeAction}
+                  isLoading={isProcessing}
+                  onClick={handleWithdraw}
+                />
+              )}
               <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
                 <span className="text-secondary">{t("ui.disclaimer")}</span>
                 <span className="text-brand-secondary"> {t("ui.terms")}</span>
               </span>
             </div>
           </div>
-        }
+        )}
       </div>
     </div>
   );
