@@ -6,7 +6,7 @@ import classNames from "classnames";
 import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import { useValidatorStore } from "@/stores/validatorStore";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { formatSol } from "@/utils/solana";
 import { VALIDATOR_VOTE_ACCOUNT } from "@/utils/solana";
 import Image from "next/image";
@@ -20,23 +20,24 @@ export default function NetworkStats() {
   } = useValidatorStore();
 
   const SLOT_INTERVAL_MS = 400;
-  const MAX_PROJECTED_LEAD_SLOTS = 64;
+  const MAX_SLOT_PROJECTION_DELTA = 64; // Limit how far ahead we project while waiting for the next RPC update.
   const REFRESH_TRIGGER_DELAY_MS = 1_500;
   const REFRESH_RETRY_DELAY_MS = 2_000;
-  const [slotTracker, setSlotTracker] = useState<{
-    slot: number;
-    timestamp: number;
-  }>({
+  const VALIDATOR_STATS_REFRESH_INTERVAL_MS = 30_000;
+
+  // Track the last authoritative slot/time so we can smoothly project forward between RPC refreshes.
+  const projectionBaselineRef = useRef<{ slot: number; timestamp: number }>({
     slot: 0,
     timestamp: 0,
   });
+  const [projectedSlotEstimate, setProjectedSlotEstimate] = useState(0);
 
   // Fetch network and validator stats on component mount
   useEffect(() => {
     fetchValidatorStats();
     const interval = setInterval(() => {
       fetchValidatorStats();
-    }, 30_000);
+    }, VALIDATOR_STATS_REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [fetchValidatorStats]);
@@ -48,96 +49,120 @@ export default function NetworkStats() {
       return;
     }
 
-    setSlotTracker({
+    projectionBaselineRef.current = {
       slot: latestNetworkSlot,
       timestamp: Date.now(),
-    });
+    };
+    setProjectedSlotEstimate(latestNetworkSlot);
   }, [validatorStats.currentSlot]);
 
-  const anchorSlot = validatorStats.currentSlot ?? 0;
+  const currentNetworkSlot = validatorStats.currentSlot ?? 0;
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSlotTracker((prev) => {
-        if (!prev.timestamp) {
-          return prev;
-        }
+      const baseline = projectionBaselineRef.current;
 
-        const elapsed = Date.now() - prev.timestamp;
-        if (elapsed < SLOT_INTERVAL_MS) {
-          return prev;
-        }
+      if (!baseline.timestamp || baseline.slot <= 0) {
+        return;
+      }
 
-        const delta = Math.floor(elapsed / SLOT_INTERVAL_MS);
-        if (delta <= 0) {
-          return prev;
-        }
+      const elapsed = Date.now() - baseline.timestamp;
+      if (elapsed < SLOT_INTERVAL_MS) {
+        return;
+      }
 
-        const cappedDelta = Math.min(delta, MAX_PROJECTED_LEAD_SLOTS);
-        const baseSlot = Math.max(anchorSlot, prev.slot);
-        const nextSlot = Math.min(
-          prev.slot + cappedDelta,
-          baseSlot + MAX_PROJECTED_LEAD_SLOTS
+      const delta = Math.floor(elapsed / SLOT_INTERVAL_MS);
+      if (delta <= 0) {
+        return;
+      }
+
+      setProjectedSlotEstimate((prev) => {
+        // Clamp the projection so we never leap ahead more than the allowed buffer.
+        const clampedProjection = Math.min(
+          baseline.slot + delta,
+          baseline.slot + MAX_SLOT_PROJECTION_DELTA
         );
-        const appliedDelta = nextSlot - prev.slot;
 
-        if (appliedDelta <= 0) {
+        if (clampedProjection <= prev) {
           return prev;
         }
 
-        return {
-          slot: nextSlot,
-          timestamp: prev.timestamp + appliedDelta * SLOT_INTERVAL_MS,
+        // Advance the baseline in lockstep with the projection so future deltas stay accurate.
+        projectionBaselineRef.current = {
+          slot: clampedProjection,
+          timestamp:
+            baseline.timestamp +
+            (clampedProjection - baseline.slot) * SLOT_INTERVAL_MS,
         };
+
+        return clampedProjection;
       });
     }, SLOT_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [anchorSlot, SLOT_INTERVAL_MS]);
+  }, []);
 
   const validatorVoteAccount = VALIDATOR_VOTE_ACCOUNT.toBase58();
   const validatorUrl = process.env.NEXT_PUBLIC_VALIDATOR_URL;
 
-  const effectiveSlot = Math.max(slotTracker.slot, anchorSlot);
+  const effectiveSlot = Math.max(projectedSlotEstimate, currentNetworkSlot);
 
-  const upcomingLeaderSlots = validatorStats.upcomingLeaderSlots ?? [];
-  const nextScheduledSlot =
-    upcomingLeaderSlots.find((slot) => slot >= anchorSlot) ??
-    upcomingLeaderSlots[0] ??
-    null;
+  const upcomingLeaderSlots = validatorStats.upcomingLeaderSlots;
 
-  // Calculate slots remaining until next leader slot
-  const getNextLeaderDisplay = () => {
-    if (!nextScheduledSlot) return "Soon";
+  const nextScheduledSlot = useMemo(() => {
+    const schedule = upcomingLeaderSlots ?? [];
 
-    const slotsRemaining = Math.max(nextScheduledSlot - effectiveSlot, 0);
+    if (schedule.length === 0) {
+      return null;
+    }
 
-    if (!Number.isFinite(slotsRemaining)) {
+    const upcomingFutureSlot = schedule.find(
+      (slot) => slot > effectiveSlot
+    );
+
+    return (
+      upcomingFutureSlot ?? schedule[schedule.length - 1] ?? null
+    );
+  }, [upcomingLeaderSlots, effectiveSlot]);
+
+  const slotsUntilNextLeader = useMemo(() => {
+    if (nextScheduledSlot === null) {
+      return null;
+    }
+
+    return Math.max(nextScheduledSlot - effectiveSlot, 0);
+  }, [nextScheduledSlot, effectiveSlot]);
+
+  const nextLeaderCountdownLabel = useMemo(() => {
+    if (slotsUntilNextLeader === null) {
+      return "Loading…";
+    }
+
+    if (!Number.isFinite(slotsUntilNextLeader)) {
       return "N/A";
     }
 
-    return `${slotsRemaining} slots`;
-  };
+    return `${slotsUntilNextLeader} slots`;
+  }, [slotsUntilNextLeader]);
+
+  const hasReachedScheduledSlot =
+    nextScheduledSlot !== null && nextScheduledSlot <= effectiveSlot;
 
   const refreshAttemptRef = useRef<{ slot: number; time: number } | null>(null);
 
   useEffect(() => {
-    if (!nextScheduledSlot) {
-      refreshAttemptRef.current = null;
-      return;
-    }
-
-    if (nextScheduledSlot > effectiveSlot) {
+    if (!nextScheduledSlot || !hasReachedScheduledSlot) {
       refreshAttemptRef.current = null;
       return;
     }
 
     const now = Date.now();
+    const lastAttempt = refreshAttemptRef.current;
 
     if (
-      refreshAttemptRef.current &&
-      refreshAttemptRef.current.slot === nextScheduledSlot &&
-      now - refreshAttemptRef.current.time < REFRESH_RETRY_DELAY_MS
+      lastAttempt &&
+      lastAttempt.slot === nextScheduledSlot &&
+      now - lastAttempt.time < REFRESH_RETRY_DELAY_MS
     ) {
       return;
     }
@@ -151,7 +176,7 @@ export default function NetworkStats() {
     return () => clearTimeout(timeout);
   }, [
     nextScheduledSlot,
-    effectiveSlot,
+    hasReachedScheduledSlot,
     fetchValidatorStats,
     REFRESH_RETRY_DELAY_MS,
     REFRESH_TRIGGER_DELAY_MS,
@@ -166,11 +191,9 @@ export default function NetworkStats() {
     validatorStatus === "idle" || validatorStatus === "loading";
   const isValidatorRefreshing = validatorStatus === "refreshing";
   const isValidatorError = validatorStatus === "error";
-  const needsLeaderRefresh =
-    nextScheduledSlot !== null && nextScheduledSlot <= effectiveSlot;
   const shouldShowNextLeaderLoading =
     !isValidatorError &&
-    (isInitialValidatorLoad || (needsLeaderRefresh && isValidatorRefreshing));
+    (isInitialValidatorLoad || (hasReachedScheduledSlot && isValidatorRefreshing));
 
   return (
     <motion.div className="w-full border-y border-border">
@@ -255,7 +278,7 @@ export default function NetworkStats() {
             ) : (
               <div className="flex w-full items-center gap-x-3 gap-y-2">
                 <span className="whitespace-nowrap leading-none">
-                  {getNextLeaderDisplay()}
+                  {nextLeaderCountdownLabel}
                 </span>
                 <Badge
                   className="hidden sm:inline-flex ml-auto flex-shrink-0"
