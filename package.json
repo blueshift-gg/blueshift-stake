@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anza-xyz/solana-rpc-get-stake-activation": "^1.0.1",
     "@solana-program/stake": "^0.2.1",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.28",

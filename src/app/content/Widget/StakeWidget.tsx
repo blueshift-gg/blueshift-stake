@@ -305,6 +305,8 @@ export default function StakeWidget() {
           message: 'Successfully merged stake accounts'
         });
         setAmount('');
+        setMergeSource(undefined);
+        setMergeDestination(undefined);
         // Refresh data after successful transaction
         setTimeout(() => refreshData(), 2000);
       } else {
@@ -331,6 +333,28 @@ export default function StakeWidget() {
     !isLoading &&
     parseFloat(amount) <= balance - 0.01;
 
+  const selectedSourceAccount = stakeAccounts?.find((account) => account.address === mergeSource);
+  const selectedDestinationAccount = stakeAccounts?.find((account) => account.address === mergeDestination);
+
+  const hasMergeSelection = Boolean(
+    mergeSource &&
+    mergeDestination &&
+    mergeSource !== mergeDestination
+  );
+
+  const shareWithdrawAuthority = Boolean(
+    selectedSourceAccount &&
+    selectedDestinationAccount &&
+    selectedSourceAccount.withdrawAuthority === selectedDestinationAccount.withdrawAuthority
+  );
+
+  const canMergeAction =
+    isConnected &&
+    !isProcessing &&
+    !isLoading &&
+    hasMergeSelection &&
+    shareWithdrawAuthority;
+
   const canUnstakeAction = isConnected &&
     isValidSolAmount(amount) &&
     !isProcessing &&
@@ -347,6 +371,12 @@ export default function StakeWidget() {
       return () => clearTimeout(timer);
     }
   }, [transactionStatus]);
+
+  useEffect(() => {
+    if (mergeSource && mergeDestination && mergeSource === mergeDestination) {
+      setMergeDestination(undefined);
+    }
+  }, [mergeSource, mergeDestination]);
 
   const deactivationStatus = {
     active: !!stakeAccount && stakeAccount.deactivationEpoch === "18446744073709551615",
@@ -512,7 +542,7 @@ export default function StakeWidget() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
                     value={mergeSource}
                     onChange={e => setMergeSource(e.target.value !== '' ? e.target.value : undefined)}
-                    disabled={true}
+                    disabled={!isConnected || isLoading || isProcessing || !stakeAccounts?.length}
                   >
                     <option value={''}>Select Source</option>
                     {stakeAccounts?.filter((account) => {
@@ -536,7 +566,7 @@ export default function StakeWidget() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
                     value={mergeDestination}
                     onChange={e => setMergeDestination(e.target.value !== '' ? e.target.value : undefined)}
-                    disabled={true}
+                    disabled={!isConnected || isLoading || isProcessing || !stakeAccounts?.length}
                   >
                     <option value={''}>Select Destination</option>
                     {stakeAccounts?.filter((account) => {
@@ -575,7 +605,8 @@ export default function StakeWidget() {
                   className="w-full relative"
                   size="lg"
                   label={t("ui.merge") || "Merge"}
-                  disabled={true}
+                  disabled={!canMergeAction}
+                  isLoading={isProcessing}
                   onClick={handleMerge}
                 />
               )}

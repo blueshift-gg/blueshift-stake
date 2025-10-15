@@ -7,8 +7,24 @@ import {
   Lockup,
   Keypair,
 } from '@solana/web3.js';
-import { connection, VALIDATOR_VOTE_ACCOUNT, solToLamports, lamportsToSol, formatSol } from '@/utils/solana';
-import { getStakeDecoder } from '@solana-program/stake';
+import {
+  connection,
+  VALIDATOR_VOTE_ACCOUNT,
+  solToLamports,
+  lamportsToSol,
+  formatSol,
+} from '@/utils/solana';
+import {
+  getStakeDecoder,
+  getMetaDecoder,
+  type Meta,
+  type Stake as StakeData,
+} from '@solana-program/stake';
+import { getStakeActivation } from '@anza-xyz/solana-rpc-get-stake-activation';
+import type { StakeActivation as StakeActivationStatus } from '@anza-xyz/solana-rpc-get-stake-activation';
+
+const STAKE_DECODER = getStakeDecoder();
+const META_DECODER = getMetaDecoder();
 
 export interface StakeAccount {
   pubkey: PublicKey;
@@ -282,8 +298,7 @@ export class StakingService {
       if (!stakeAccountInfo) {
         throw new Error("Stake account not found");
       }
-      const stakeDecoder = getStakeDecoder();
-      const stakeDecoded = stakeDecoder.decode(Buffer.from(stakeAccountInfo.data), 124);
+  const stakeDecoded = STAKE_DECODER.decode(Buffer.from(stakeAccountInfo.data), 124);
 
       // Check if stake is deactivated and cooldown is complete
       const deactivationEpoch = stakeDecoded.delegation?.deactivationEpoch;
@@ -330,6 +345,260 @@ export class StakingService {
     }
   }
 
+  private async validateMergeConditions(
+    sourceAccount: PublicKey,
+    destinationAccount: PublicKey
+  ): Promise<{ success: boolean; error?: string }> {
+    const [sourceInfo, destinationInfo] = await Promise.all([
+      this.connection.getAccountInfo(sourceAccount),
+      this.connection.getAccountInfo(destinationAccount),
+    ]);
+
+    if (!sourceInfo) {
+      return { success: false, error: "Source stake account not found." };
+    }
+
+    if (!destinationInfo) {
+      return { success: false, error: "Destination stake account not found." };
+    }
+
+    let sourceMeta: Meta;
+    let destinationMeta: Meta;
+
+    try {
+      sourceMeta = META_DECODER.decode(Buffer.from(sourceInfo.data), 4);
+      destinationMeta = META_DECODER.decode(Buffer.from(destinationInfo.data), 4);
+    } catch (error) {
+      console.error("Failed to decode stake account metadata:", error);
+      return {
+        success: false,
+        error: "Unable to decode stake account metadata for merge validation.",
+      };
+    }
+
+    if (sourceMeta.authorized.staker !== destinationMeta.authorized.staker) {
+      return {
+        success: false,
+        error: "Stake accounts must share the same authorized staker to merge.",
+      };
+    }
+
+    if (sourceMeta.authorized.withdrawer !== destinationMeta.authorized.withdrawer) {
+      return {
+        success: false,
+        error: "Stake accounts must share the same withdraw authority to merge.",
+      };
+    }
+
+    const lockupMatches =
+      sourceMeta.lockup.custodian === destinationMeta.lockup.custodian &&
+      sourceMeta.lockup.epoch === destinationMeta.lockup.epoch &&
+      sourceMeta.lockup.unixTimestamp === destinationMeta.lockup.unixTimestamp;
+
+    if (!lockupMatches) {
+      return {
+        success: false,
+        error: "Stake accounts must share the same lockup configuration to merge.",
+      };
+    }
+
+    const sourceStakeData = this.decodeStakeData(sourceInfo.data);
+    const destinationStakeData = this.decodeStakeData(destinationInfo.data);
+
+    const sourceDelegation = sourceStakeData?.delegation;
+    const destinationDelegation = destinationStakeData?.delegation;
+
+    const sourceVoter = sourceDelegation?.voterPubkey;
+    const destinationVoter = destinationDelegation?.voterPubkey;
+
+    const sourceCredits = sourceStakeData?.creditsObserved;
+    const destinationCredits = destinationStakeData?.creditsObserved;
+
+    const sourceActivationEpoch = sourceDelegation?.activationEpoch;
+    const destinationActivationEpoch = destinationDelegation?.activationEpoch;
+
+    let sourceActivation: StakeActivationStatus;
+    let destinationActivation: StakeActivationStatus;
+    let epochInfo;
+
+    try {
+      const [sourceResult, destinationResult, epochResult] = await Promise.all([
+        getStakeActivation(this.connection, sourceAccount),
+        getStakeActivation(this.connection, destinationAccount),
+        this.connection.getEpochInfo(),
+      ]);
+
+      sourceActivation = sourceResult;
+      destinationActivation = destinationResult;
+      epochInfo = epochResult;
+    } catch (error) {
+      console.error("Failed to fetch stake activation status:", error);
+      return {
+        success: false,
+        error: "Unable to fetch stake activation status for merge validation.",
+      };
+    }
+
+    const currentEpoch = epochInfo.epoch;
+    const currentEpochBigInt = BigInt(currentEpoch);
+
+    if (
+      this.isTransientActivation(sourceActivation) ||
+      this.isTransientActivation(destinationActivation)
+    ) {
+      return {
+        success: false,
+        error: "Cannot merge stakes that are partially activating or deactivating.",
+      };
+    }
+
+    if (
+      sourceActivation.status === "inactive" &&
+      destinationActivation.status === "inactive"
+    ) {
+      return { success: true };
+    }
+
+    if (
+      sourceActivation.status === "inactive" &&
+      destinationActivation.status === "activating"
+    ) {
+      if (!destinationDelegation) {
+        return {
+          success: false,
+          error: "Destination activating stake is missing delegation data.",
+        };
+      }
+
+      if (
+        destinationActivationEpoch === undefined ||
+        destinationActivationEpoch !== currentEpochBigInt
+      ) {
+        return {
+          success: false,
+          error:
+            "Destination activating stake must be in its activation epoch to merge.",
+        };
+      }
+
+    if (destinationActivation.active > BigInt(0)) {
+        return {
+          success: false,
+          error:
+            "Destination activating stake already has active balance; wait for activation to complete before merging.",
+        };
+      }
+
+      return { success: true };
+    }
+
+    if (
+      sourceActivation.status === "activating" &&
+      destinationActivation.status === "inactive"
+    ) {
+      return {
+        success: false,
+        error: "Select the activating stake as the destination account when merging.",
+      };
+    }
+
+    if (
+      sourceActivation.status === "active" &&
+      destinationActivation.status === "active"
+    ) {
+      if (!sourceDelegation || !destinationDelegation) {
+        return {
+          success: false,
+          error: "Active stakes must include delegation data to merge.",
+        };
+      }
+
+      if (!sourceVoter || !destinationVoter || sourceVoter !== destinationVoter) {
+        return {
+          success: false,
+          error: "Active stakes must share the same delegated vote account to merge.",
+        };
+      }
+
+      if (
+        sourceCredits === undefined ||
+        destinationCredits === undefined ||
+        sourceCredits !== destinationCredits
+      ) {
+        console.log("Source credits:", sourceCredits, "Destination credits:", destinationCredits);
+        return {
+          success: false,
+          error: "Active stakes must share the same vote credits observed to merge.",
+        };
+      }
+
+      return { success: true };
+    }
+
+    if (
+      sourceActivation.status === "activating" &&
+      destinationActivation.status === "activating"
+    ) {
+      if (!sourceDelegation || !destinationDelegation) {
+        return {
+          success: false,
+          error: "Activating stakes must include delegation data to merge.",
+        };
+      }
+
+      if (
+        sourceActivationEpoch === undefined ||
+        destinationActivationEpoch === undefined ||
+        sourceActivationEpoch !== destinationActivationEpoch ||
+        sourceActivationEpoch !== currentEpochBigInt
+      ) {
+        return {
+          success: false,
+          error:
+            "Activating stakes can only be merged during their shared activation epoch.",
+        };
+      }
+
+      if (!sourceVoter || !destinationVoter || sourceVoter !== destinationVoter) {
+        return {
+          success: false,
+          error: "Activating stakes must share the same delegated vote account to merge.",
+        };
+      }
+
+      if (
+        sourceCredits === undefined ||
+        destinationCredits === undefined ||
+        sourceCredits !== destinationCredits
+      ) {
+        console.error("Source credits:", sourceCredits, "Destination credits:", destinationCredits);
+        return {
+          success: false,
+          error:
+            "Activating stakes must share identical vote credits observed to merge.",
+        };
+      }
+
+      if (
+        sourceActivation.active > BigInt(0) ||
+        destinationActivation.active > BigInt(0)
+      ) {
+        return {
+          success: false,
+          error:
+            "Cannot merge activating stakes once any portion has become active.",
+        };
+      }
+
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      error: "Selected stake accounts cannot be merged in their current states.",
+    };
+  }
+
   async mergeStake(
     userPublicKey: PublicKey,
     sourceAccount: PublicKey,
@@ -337,6 +606,14 @@ export class StakingService {
     signTransaction: (transaction: Transaction) => Promise<Transaction>
   ): Promise<{ success: boolean; signature?: string; error?: string }> {
     try {
+      const validation = await this.validateMergeConditions(sourceAccount, destinationAccount);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: validation.error,
+        };
+      }
+
       const transaction = new Transaction();
 
       transaction.add(
@@ -428,6 +705,31 @@ export class StakingService {
           error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
+  }
+
+  private decodeStakeData(data: Uint8Array | Buffer): StakeData | null {
+    try {
+      return STAKE_DECODER.decode(Buffer.from(data), 124);
+    } catch {
+      return null;
+    }
+  }
+
+  private isTransientActivation(
+    activation: StakeActivationStatus | undefined
+  ): boolean {
+    if (!activation) {
+      return false;
+    }
+
+    if (
+      activation.status === "activating" ||
+      activation.status === "deactivating"
+    ) {
+      return activation.active > BigInt(0);
+    }
+
+    return false;
   }
 }
 
