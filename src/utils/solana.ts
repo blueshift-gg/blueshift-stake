@@ -19,14 +19,6 @@ export const solToLamports = (sol: number): number => {
   return Math.floor(sol * LAMPORTS_PER_SOL);
 };
 
-export const formatSol = (sol: number, decimals: number = 4): string => {
-  return sol.toFixed(decimals);
-};
-
-export const formatLamports = (lamports: number, decimals: number = 4): string => {
-  return formatSol(lamportsToSol(lamports), decimals);
-};
-
 // Validate SOL amount input
 export const isValidSolAmount = (amount: string): boolean => {
   const num = parseFloat(amount);

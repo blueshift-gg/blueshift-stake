@@ -2,12 +2,12 @@
 import Badge from "@/components/Badge/Badge";
 import Icon from "@/components/Icon/Icon";
 import { shortenString } from "@/utils/utils";
+import { formatNumber, formatPercent, formatSol } from "@/utils/format";
 import classNames from "classnames";
 import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import { useValidatorStore } from "@/stores/validatorStore";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { formatSol } from "@/utils/solana";
 import { VALIDATOR_VOTE_ACCOUNT } from "@/utils/solana";
 import Image from "next/image";
 
@@ -135,14 +135,14 @@ export default function NetworkStats() {
 
   const nextLeaderCountdownLabel = useMemo(() => {
     if (slotsUntilNextLeader === null) {
-      return "Loading…";
+      return "TBD";
     }
 
     if (!Number.isFinite(slotsUntilNextLeader)) {
       return "N/A";
     }
 
-    return `${slotsUntilNextLeader} slots`;
+    return `${formatNumber(slotsUntilNextLeader)} slots`;
   }, [slotsUntilNextLeader]);
 
   const hasReachedScheduledSlot =
@@ -181,11 +181,6 @@ export default function NetworkStats() {
     REFRESH_RETRY_DELAY_MS,
     REFRESH_TRIGGER_DELAY_MS,
   ]);
-
-  const formatPercent = (value: number, digits = 2) => {
-    const numeric = Number.isFinite(value) ? value : 0;
-    return `${Math.max(numeric, 0).toFixed(digits)}%`;
-  };
 
   const isInitialValidatorLoad =
     validatorStatus === "idle" || validatorStatus === "loading";
@@ -283,7 +278,11 @@ export default function NetworkStats() {
                 <Badge
                   className="hidden sm:inline-flex ml-auto flex-shrink-0"
                   color="rgb(173, 185, 210)"
-                  value={`${nextScheduledSlot ?? "TBD"}`}
+                  value={
+                    nextScheduledSlot === null
+                      ? "TBD"
+                      : formatNumber(nextScheduledSlot)
+                  }
                 />
               </div>
             )}

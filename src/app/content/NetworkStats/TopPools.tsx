@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { rgbToRgba, shortenString } from "@/utils/utils";
+import { formatNumber } from "@/utils/format";
 import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
 import Icon from "@/components/Icon/Icon";
 import DecryptedText from "@/components/HeadingReveal/DecryptText";
@@ -215,9 +216,7 @@ const PoolCarousel = () => {
                 </div>
               </div>
               <span className="font-mono text-primary text-lg self-center">
-              { new Intl.NumberFormat("en-US", {
-                maximumFractionDigits: 2
-              }).format(pool.amountStaked) } SOL
+              {formatNumber(pool.amountStaked, { maximumFractionDigits: 2 })} SOL
             </span>
           </motion.a>
           );

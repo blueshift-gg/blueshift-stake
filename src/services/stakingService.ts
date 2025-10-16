@@ -12,8 +12,8 @@ import {
   VALIDATOR_VOTE_ACCOUNT,
   solToLamports,
   lamportsToSol,
-  formatSol,
 } from '@/utils/solana';
+import { formatSol } from '@/utils/format';
 import {
   getStakeDecoder,
   getMetaDecoder,

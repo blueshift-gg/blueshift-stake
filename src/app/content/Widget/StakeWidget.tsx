@@ -2,7 +2,7 @@
 import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
 import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/Button/Button";
 import Icon from "@/components/Icon/Icon";
@@ -10,11 +10,18 @@ import Badge from "@/components/Badge/Badge";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useStakingStore } from "@/stores/stakingStore";
 import { stakingService } from "@/services/stakingService";
-import { formatSol, isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
+import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import Image from "next/image";
 import { trpc } from "@/utils/trpc";
 import { PublicKey } from "@solana/web3.js";
+import {
+  formatAmountInput,
+  formatCurrency,
+  formatNumber,
+  formatSol,
+  normalizeAmountInput,
+} from "@/utils/format";
 
 export default function StakeWidget() {
   const [selectedTab, setSelectedTab] = useState<"stake" | "unstake" | "merge">("stake");
@@ -62,15 +69,25 @@ export default function StakeWidget() {
     { id: "merge", label: t("ui.merge") || "Merge" },
   ] as const;
 
+  const normalizedAmount = useMemo(() => normalizeAmountInput(amount), [amount]);
+  const numericAmount = useMemo(() => {
+    if (!normalizedAmount) {
+      return 0;
+    }
+
+    const parsed = Number(normalizedAmount);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [normalizedAmount]);
+
   // Handle max button click
   const handleMaxClick = async () => {
     if (selectedTab === "stake") {
       // Leave some SOL for transaction fees
       const maxStakeAmount = Math.max(0, balance - 0.01);
-      setAmount(maxStakeAmount.toString());
+      setAmount(formatAmountInput(maxStakeAmount, 4));
     } else if (selectedTab === "unstake") {
       // For unstaking, show total staked amount
-      setAmount(String(stakeAccount?.amountStaked ?? 0));
+      setAmount(formatAmountInput(stakeAccount?.amountStaked ?? 0, 4));
     } else {
       setAmount("");
     }
@@ -78,21 +95,25 @@ export default function StakeWidget() {
 
   // Handle amount input change
   const handleAmountChange = (value: string) => {
-    // Only allow numbers and decimal point
-    if (/^\d*\.?\d*$/.test(value)) {
-      setAmount(value);
-    }
+    setAmount(formatAmountInput(value));
   };
 
   // Handle stake operation
   const handleStake = async () => {
-    if (!publicKey || !signTransaction || !isValidSolAmount(amount)) return;
+    if (!publicKey || !signTransaction) return;
 
-    const stakeAmount = parseFloat(amount);
+    if (!isValidSolAmount(normalizedAmount)) {
+      return;
+    }
+
+    const stakeAmount = numericAmount;
     if (stakeAmount < minStakeAmount) {
       setTransactionStatus({
         type: 'error',
-        message: `Minimum stake amount is ${minStakeAmount} SOL`
+        message: `Minimum stake amount is ${formatNumber(minStakeAmount, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 4,
+        })} SOL`
       });
       return;
     }
@@ -118,7 +139,10 @@ export default function StakeWidget() {
       if (result.success) {
         setTransactionStatus({
           type: 'success',
-          message: `Successfully staked ${stakeAmount} SOL!`
+          message: `Successfully staked ${formatNumber(stakeAmount, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 9,
+          })} SOL!`
         });
         setAmount('');
         // Refresh data after successful transaction
@@ -159,9 +183,9 @@ export default function StakeWidget() {
       return;
     }
 
-    const unstakeAmount = parseFloat(amount);
+    const unstakeAmount = numericAmount;
 
-    if (!isValidSolAmount(amount) || unstakeAmount <= 0) {
+    if (!isValidSolAmount(normalizedAmount) || unstakeAmount <= 0) {
       setTransactionStatus({
         type: 'error',
         message: 'Enter a valid amount to deactivate'
@@ -191,7 +215,10 @@ export default function StakeWidget() {
       if (result.success) {
         setTransactionStatus({
           type: 'success',
-          message: `Successfully deactivated ${unstakeAmount} SOL!`
+          message: `Successfully deactivated ${formatNumber(unstakeAmount, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 9,
+          })} SOL!`
         });
         setAmount('');
         // Refresh data after successful transaction
@@ -328,10 +355,10 @@ export default function StakeWidget() {
   };
 
   const canStakeAction = isConnected &&
-    isValidSolAmount(amount) &&
+    isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
     !isLoading &&
-    parseFloat(amount) <= balance - 0.01;
+    numericAmount <= balance - 0.01;
 
   const selectedSourceAccount = stakeAccounts?.find((account) => account.address === mergeSource);
   const selectedDestinationAccount = stakeAccounts?.find((account) => account.address === mergeDestination);
@@ -356,11 +383,11 @@ export default function StakeWidget() {
     shareWithdrawAuthority;
 
   const canUnstakeAction = isConnected &&
-    isValidSolAmount(amount) &&
+    isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
     !isLoading &&
     !!unstakeAccount &&
-    parseFloat(amount) <= (stakeAccount?.amountStaked ?? 0);
+    numericAmount <= (stakeAccount?.amountStaked ?? 0);
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
@@ -386,9 +413,17 @@ export default function StakeWidget() {
 
   useEffect(() => {
     const updateAmount = async () => {
-      if (deactivationStatus.withdrawing) {
-      setAmount(formatSol(await stakingService.getBalance(new PublicKey(unstakeAccount!))));
-    }}
+      if (!deactivationStatus.withdrawing || !unstakeAccount) {
+        return;
+      }
+
+      const balanceValue = await stakingService.getBalance(
+        new PublicKey(unstakeAccount)
+      );
+
+    setAmount(formatAmountInput(balanceValue, 4));
+    };
+
     updateAmount();
   }, [deactivationStatus.withdrawing, unstakeAccount]);
 
@@ -475,7 +510,7 @@ export default function StakeWidget() {
                   />
                 </div>
                 <div className="h-[24px] w-full">
-                  {amount && (parseFloat(amount) || 0) > 0 && (
+                  {numericAmount > 0 && (
                     <motion.div
                       className="w-full flex"
                       initial={{ opacity: 0 }}
@@ -487,7 +522,7 @@ export default function StakeWidget() {
                       <Badge
                         color="rgb(173,185,210)"
                         className="font-mono ml-auto"
-                        value={`~$${((parseFloat(amount) || 0) * solPrice).toFixed(2)} USD`}
+                        value={`~${formatCurrency(numericAmount * solPrice)} USD`}
                       />
                     </motion.div>
                   )}
@@ -675,7 +710,7 @@ export default function StakeWidget() {
                   {deactivationStatus.withdrawing ? (
                     <input
                       className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                      placeholder={String(stakeAccount?.amountStaked ?? 0)}
+                      placeholder={formatSol(stakeAccount?.amountStaked ?? 0)}
                       disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
                       value={formatSol(stakeAccount?.amountStaked ?? 0)}
                       readOnly
@@ -697,7 +732,7 @@ export default function StakeWidget() {
                   />
                 </div>
                 <div className="h-[24px] w-full">
-                  {amount && (parseFloat(amount) || 0) > 0 && (
+                  {numericAmount > 0 && (
                     <motion.div
                       className="w-full flex"
                       initial={{ opacity: 0 }}
@@ -709,7 +744,7 @@ export default function StakeWidget() {
                       <Badge
                         color="rgb(173,185,210)"
                         className="font-mono ml-auto"
-                        value={`~$${((parseFloat(amount) || 0) * solPrice).toFixed(2)} USD`}
+                        value={`~${formatCurrency(numericAmount * solPrice)} USD`}
                       />
                     </motion.div>
                   )}
