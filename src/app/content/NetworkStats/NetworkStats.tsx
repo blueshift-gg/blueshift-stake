@@ -6,24 +6,37 @@ import { formatNumber, formatPercent, formatSol } from "@/utils/format";
 import classNames from "classnames";
 import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
-import { useValidatorStore } from "@/stores/validatorStore";
+import { trpc } from "@/utils/trpc";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { VALIDATOR_VOTE_ACCOUNT } from "@/utils/solana";
 import Image from "next/image";
 
+const SLOT_INTERVAL_MS = 400;
+const MAX_SLOT_PROJECTION_DELTA = 64;
+const REFRESH_TRIGGER_DELAY_MS = 1_500;
+const REFRESH_RETRY_DELAY_MS = 2_000;
+const VALIDATOR_STATS_REFRESH_INTERVAL_MS = 30_000;
+
 export default function NetworkStats() {
   const t = useTranslations();
   const {
-    stats: validatorStats,
+    data: validatorStatsData,
     status: validatorStatus,
-    fetchStats: fetchValidatorStats,
-  } = useValidatorStore();
+    fetchStatus: validatorFetchStatus,
+    refetch: refetchValidatorStats,
+  } = trpc.validator.stats.useQuery(undefined, {
+    refetchInterval: VALIDATOR_STATS_REFRESH_INTERVAL_MS,
+    refetchOnWindowFocus: false,
+  });
 
-  const SLOT_INTERVAL_MS = 400;
-  const MAX_SLOT_PROJECTION_DELTA = 64; // Limit how far ahead we project while waiting for the next RPC update.
-  const REFRESH_TRIGGER_DELAY_MS = 1_500;
-  const REFRESH_RETRY_DELAY_MS = 2_000;
-  const VALIDATOR_STATS_REFRESH_INTERVAL_MS = 30_000;
+  const validatorStats = validatorStatsData ?? {
+    totalStake: 0,
+    apy: 0,
+    currentSlot: 0,
+    upcomingLeaderSlots: [],
+  };
+
+  // Constants hoisted outside component for reuse.
 
   // Track the last authoritative slot/time so we can smoothly project forward between RPC refreshes.
   const projectionBaselineRef = useRef<{ slot: number; timestamp: number }>({
@@ -32,15 +45,7 @@ export default function NetworkStats() {
   });
   const [projectedSlotEstimate, setProjectedSlotEstimate] = useState(0);
 
-  // Fetch network and validator stats on component mount
-  useEffect(() => {
-    fetchValidatorStats();
-    const interval = setInterval(() => {
-      fetchValidatorStats();
-    }, VALIDATOR_STATS_REFRESH_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [fetchValidatorStats]);
+  // The React Query hook handles initial fetch and background refresh.
 
   useEffect(() => {
     const latestNetworkSlot = validatorStats.currentSlot;
@@ -170,22 +175,20 @@ export default function NetworkStats() {
     refreshAttemptRef.current = { slot: nextScheduledSlot, time: now };
 
     const timeout = setTimeout(() => {
-      fetchValidatorStats();
+      void refetchValidatorStats();
     }, REFRESH_TRIGGER_DELAY_MS);
 
     return () => clearTimeout(timeout);
   }, [
     nextScheduledSlot,
     hasReachedScheduledSlot,
-    fetchValidatorStats,
-    REFRESH_RETRY_DELAY_MS,
-    REFRESH_TRIGGER_DELAY_MS,
+    refetchValidatorStats,
   ]);
 
-  const isInitialValidatorLoad =
-    validatorStatus === "idle" || validatorStatus === "loading";
-  const isValidatorRefreshing = validatorStatus === "refreshing";
+  const isInitialValidatorLoad = validatorStatus === "pending";
   const isValidatorError = validatorStatus === "error";
+  const isValidatorRefreshing =
+    validatorFetchStatus === "fetching" && !isInitialValidatorLoad;
   const shouldShowNextLeaderLoading =
     !isValidatorError &&
     (isInitialValidatorLoad || (hasReachedScheduledSlot && isValidatorRefreshing));

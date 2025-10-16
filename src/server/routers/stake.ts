@@ -9,6 +9,13 @@ const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, {
 });
 
 export const stakeRouter = createTRPCRouter({
+  balance: publicProcedure
+    .input(z.object({ address: z.string() }))
+    .output(z.object({ balance: z.number() }))
+    .query(async ({ input }) => {
+      const balance = await connection.getBalance(new PublicKey(input.address));
+      return { balance: lamportsToSol(balance) };
+    }),
   total: publicProcedure
     .input(z.void())
     .output(z.array(z.object({

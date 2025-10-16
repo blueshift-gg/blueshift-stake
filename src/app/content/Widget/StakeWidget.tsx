@@ -2,13 +2,13 @@
 import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
 import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/Button/Button";
 import Icon from "@/components/Icon/Icon";
 import Badge from "@/components/Badge/Badge";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useStakingStore } from "@/stores/stakingStore";
+import { useStakeUiStore } from "@/stores/stakingStore";
 import { stakingService } from "@/services/stakingService";
 import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
@@ -24,29 +24,62 @@ import {
 } from "@/utils/format";
 
 export default function StakeWidget() {
-  const [selectedTab, setSelectedTab] = useState<"stake" | "unstake" | "merge">("stake");
+  const {
+    selectedTab,
+    setSelectedTab,
+    transactionStatus,
+    setTransactionStatus,
+    clearTransactionStatus,
+  } = useStakeUiStore();
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transactionStatus, setTransactionStatus] = useState<{
-    type: 'success' | 'error' | null;
-    message: string;
-  }>({ type: null, message: '' });
 
   const t = useTranslations();
-  const { publicKey, signTransaction } = useWallet();
+  const { publicKey, signTransaction, connected } = useWallet();
+  const walletAddress = useMemo(
+    () => publicKey?.toBase58() ?? "",
+    [publicKey]
+  );
+
   const {
-    isConnected,
-    balance,
-    isLoading,
-    refreshData
-  } = useStakingStore();
+    data: balanceData,
+    status: balanceStatus,
+    fetchStatus: balanceFetchStatus,
+    refetch: refetchBalance,
+  } = trpc.stake.balance.useQuery(
+    { address: walletAddress },
+    {
+      enabled: Boolean(walletAddress),
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  const balance = balanceData?.balance ?? 0;
+  const isBalanceLoading =
+    balanceStatus === "pending" && balanceFetchStatus === "fetching";
+
+  const scheduleBalanceRefresh = useCallback(() => {
+    if (!connected) {
+      return;
+    }
+
+    setTimeout(() => {
+      void refetchBalance();
+    }, 2000);
+  }, [connected, refetchBalance]);
 
   const solPrice = 165.44; // In production, fetch from price API
   const minStakeAmount = getMinimumStakeAmount();
 
-  const { data: stakeAccounts, refetch: refetchStakeAccounts } = trpc.stake.poolsbyAuthority.useQuery({
-    stakingAuthority: publicKey?.toString() || ""
-  });
+  const { data: stakeAccounts, refetch: refetchStakeAccounts } = trpc.stake.poolsbyAuthority.useQuery(
+    {
+      stakingAuthority: publicKey?.toBase58() || "",
+    },
+    {
+      enabled: Boolean(publicKey),
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const [mergeSource, setMergeSource] = useState<string | undefined>(undefined);
   const [mergeDestination, setMergeDestination] = useState<string | undefined>(undefined);
@@ -78,6 +111,18 @@ export default function StakeWidget() {
     const parsed = Number(normalizedAmount);
     return Number.isFinite(parsed) ? parsed : 0;
   }, [normalizedAmount]);
+
+  useEffect(() => {
+    if (connected) {
+      return;
+    }
+
+    setAmount("");
+    setMergeSource(undefined);
+    setMergeDestination(undefined);
+    setUnstakeAccount(undefined);
+    clearTransactionStatus();
+  }, [connected, clearTransactionStatus]);
 
   // Handle max button click
   const handleMaxClick = async () => {
@@ -143,10 +188,10 @@ export default function StakeWidget() {
             minimumFractionDigits: 0,
             maximumFractionDigits: 9,
           })} SOL!`
-        });
-        setAmount('');
-        // Refresh data after successful transaction
-        setTimeout(() => refreshData(), 2000);
+    });
+    setAmount('');
+    // Refresh balance after successful transaction
+    scheduleBalanceRefresh();
       } else {
         setTransactionStatus({
           type: 'error',
@@ -167,7 +212,7 @@ export default function StakeWidget() {
 
   // Handle deactivate operation
   const handleDeactivate = async () => {
-    if (!isConnected || !publicKey || !signTransaction) {
+    if (!connected || !publicKey || !signTransaction) {
       setTransactionStatus({
         type: 'error',
         message: 'Wallet not connected'
@@ -221,8 +266,8 @@ export default function StakeWidget() {
           })} SOL!`
         });
         setAmount('');
-        // Refresh data after successful transaction
-        setTimeout(() => refreshData(), 2000);
+        // Refresh balance after successful transaction
+        scheduleBalanceRefresh();
       } else {
         setTransactionStatus({
           type: 'error',
@@ -244,7 +289,7 @@ export default function StakeWidget() {
 
   // Handle withdraw operation
   const handleWithdraw = async () => {
-    if (!isConnected || !publicKey || !signTransaction) {
+    if (!connected || !publicKey || !signTransaction) {
       setTransactionStatus({
         type: 'error',
         message: 'Wallet not connected'
@@ -276,8 +321,8 @@ export default function StakeWidget() {
           message: `Successfully withdrew SOL!`
         });
         setAmount('');
-        // Refresh data after successful transaction
-        setTimeout(() => refreshData(), 2000);
+        // Refresh balance after successful transaction
+        scheduleBalanceRefresh();
       } else {
         setTransactionStatus({
           type: 'error',
@@ -297,9 +342,9 @@ export default function StakeWidget() {
     setUnstakeAccount(undefined);
   };
 
-  // Handle unstake operation
+  // Handle merge operation
   const handleMerge = async () => {
-    if (!isConnected || !publicKey || !signTransaction) {
+    if (!connected || !publicKey || !signTransaction) {
       setTransactionStatus({
         type: 'error',
         message: 'Wallet not connected'
@@ -334,8 +379,8 @@ export default function StakeWidget() {
         setAmount('');
         setMergeSource(undefined);
         setMergeDestination(undefined);
-        // Refresh data after successful transaction
-        setTimeout(() => refreshData(), 2000);
+        // Refresh balance after successful transaction
+        scheduleBalanceRefresh();
       } else {
         setTransactionStatus({
           type: 'error',
@@ -354,10 +399,10 @@ export default function StakeWidget() {
     refetchStakeAccounts();
   };
 
-  const canStakeAction = isConnected &&
+  const canStakeAction = connected &&
     isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
-    !isLoading &&
+    !isBalanceLoading &&
     numericAmount <= balance - 0.01;
 
   const selectedSourceAccount = stakeAccounts?.find((account) => account.address === mergeSource);
@@ -376,28 +421,31 @@ export default function StakeWidget() {
   );
 
   const canMergeAction =
-    isConnected &&
+    connected &&
     !isProcessing &&
-    !isLoading &&
+    !isBalanceLoading &&
     hasMergeSelection &&
     shareWithdrawAuthority;
 
-  const canUnstakeAction = isConnected &&
+  const canUnstakeAction = connected &&
     isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
-    !isLoading &&
+    !isBalanceLoading &&
     !!unstakeAccount &&
     numericAmount <= (stakeAccount?.amountStaked ?? 0);
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
-    if (transactionStatus.type) {
-      const timer = setTimeout(() => {
-        setTransactionStatus({ type: null, message: '' });
-      }, 5000);
-      return () => clearTimeout(timer);
+    if (!transactionStatus.type) {
+      return;
     }
-  }, [transactionStatus]);
+
+    const timer = setTimeout(() => {
+      clearTransactionStatus();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [transactionStatus, clearTransactionStatus]);
 
   useEffect(() => {
     if (mergeSource && mergeDestination && mergeSource === mergeDestination) {
@@ -498,14 +546,14 @@ export default function StakeWidget() {
                   <input
                     className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                     placeholder="0.00"
-                    disabled={!isConnected || isLoading}
+                    disabled={!connected || isBalanceLoading}
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                   />
                   <Button
                     size="xs"
                     label={t("ui.max")}
-                    disabled={!isConnected || isLoading}
+                    disabled={!connected || isBalanceLoading}
                     onClick={handleMaxClick}
                   />
                 </div>
@@ -545,8 +593,8 @@ export default function StakeWidget() {
                   {transactionStatus.message}
                 </motion.div>
               )}
-              {!isConnected ? (
-                <WalletMultiButton isLoading={isLoading} />
+              {!connected ? (
+                <WalletMultiButton isLoading={isBalanceLoading} />
               ) : (
                 <Button
                   icon={"Target"}
@@ -577,7 +625,7 @@ export default function StakeWidget() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
                     value={mergeSource}
                     onChange={e => setMergeSource(e.target.value !== '' ? e.target.value : undefined)}
-                    disabled={!isConnected || isLoading || isProcessing || !stakeAccounts?.length}
+                    disabled={!connected || isBalanceLoading || isProcessing || !stakeAccounts?.length}
                   >
                     <option value={''}>Select Source</option>
                     {stakeAccounts?.filter((account) => {
@@ -601,7 +649,7 @@ export default function StakeWidget() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
                     value={mergeDestination}
                     onChange={e => setMergeDestination(e.target.value !== '' ? e.target.value : undefined)}
-                    disabled={!isConnected || isLoading || isProcessing || !stakeAccounts?.length}
+                    disabled={!connected || isBalanceLoading || isProcessing || !stakeAccounts?.length}
                   >
                     <option value={''}>Select Destination</option>
                     {stakeAccounts?.filter((account) => {
@@ -633,8 +681,8 @@ export default function StakeWidget() {
                   {transactionStatus.message}
                 </motion.div>
               )}
-              {!isConnected ? (
-                <WalletMultiButton isLoading={isLoading} />
+              {!connected ? (
+                <WalletMultiButton isLoading={isBalanceLoading} />
               ) : (
                 <Button
                   className="w-full relative"
@@ -711,7 +759,7 @@ export default function StakeWidget() {
                     <input
                       className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                       placeholder={formatSol(stakeAccount?.amountStaked ?? 0)}
-                      disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                      disabled={!connected || isBalanceLoading || !unstakeAccount || deactivationStatus.deactivating}
                       value={formatSol(stakeAccount?.amountStaked ?? 0)}
                       readOnly
                     />
@@ -719,7 +767,7 @@ export default function StakeWidget() {
                     <input
                       className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                       placeholder="0.00"
-                      disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                      disabled={!connected || isBalanceLoading || !unstakeAccount || deactivationStatus.deactivating}
                       value={amount}
                       onChange={(e) => handleAmountChange(e.target.value)}
                     />
@@ -727,7 +775,7 @@ export default function StakeWidget() {
                   <Button
                     size="xs"
                     label={t("ui.max")}
-                    disabled={!isConnected || isLoading || !unstakeAccount || deactivationStatus.deactivating}
+                    disabled={!connected || isBalanceLoading || !unstakeAccount || deactivationStatus.deactivating}
                     onClick={handleMaxClick}
                   />
                 </div>
@@ -766,8 +814,8 @@ export default function StakeWidget() {
                   {transactionStatus.message}
                 </motion.div>
               )}
-              {!isConnected && (
-                <WalletMultiButton isLoading={isLoading} />
+              {!connected && (
+                <WalletMultiButton isLoading={isBalanceLoading} />
               )}
               {(!stakeAccount || deactivationStatus.active) && (
                 <Button
