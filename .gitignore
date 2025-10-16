@@ -43,3 +43,6 @@ next-env.d.ts
 
 # IDE and editors
 .idea
+
+# Cloudflare
+.open-next
