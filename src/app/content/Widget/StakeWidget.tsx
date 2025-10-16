@@ -4,30 +4,27 @@ import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import Button from "@/components/Button/Button";
-import Icon from "@/components/Icon/Icon";
-import Badge from "@/components/Badge/Badge";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { stakingService } from "@/services/stakingService";
 import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
-import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
-import Image from "next/image";
 import { trpc } from "@/utils/trpc";
 import { PublicKey } from "@solana/web3.js";
 import {
   formatAmountInput,
-  formatCurrency,
   formatNumber,
-  formatSol,
   normalizeAmountInput,
 } from "@/utils/format";
+import { StakeTabContent } from "./components/StakeTabContent";
+import { MergeTabContent } from "./components/MergeTabContent";
+import { UnstakeTabContent } from "./components/UnstakeTabContent";
+import type { DeactivationStatus, TransactionStatus, StakeTab } from "./types";
 
 export default function StakeWidget() {
-  const [selectedTab, setSelectedTab] = useState<"stake" | "unstake" | "merge">("stake");
-  const [transactionStatus, setTransactionStatus] = useState<{
-    type: "success" | "error" | null;
-    message: string;
-  }>({ type: null, message: "" });
+  const [selectedTab, setSelectedTab] = useState<StakeTab>("stake");
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>({
+    type: null,
+    message: "",
+  });
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const clearTransactionStatus = useCallback(() => {
@@ -96,11 +93,11 @@ export default function StakeWidget() {
     refetchInterval: 5000,
   })
 
-  const tabs = [
+  const tabs: Array<{ id: StakeTab; label: string }> = [
     { id: "stake", label: t("ui.stake") },
     { id: "unstake", label: t("ui.unstake") || "Unstake" },
     { id: "merge", label: t("ui.merge") || "Merge" },
-  ] as const;
+  ];
 
   const normalizedAmount = useMemo(() => normalizeAmountInput(amount), [amount]);
   const numericAmount = useMemo(() => {
@@ -453,7 +450,7 @@ export default function StakeWidget() {
     }
   }, [mergeSource, mergeDestination]);
 
-  const deactivationStatus = {
+  const deactivationStatus: DeactivationStatus = {
     active: !!stakeAccount && stakeAccount.deactivationEpoch === "18446744073709551615",
     deactivating: !!currentEpoch && !!stakeAccount && stakeAccount.deactivationEpoch !== "18446744073709551615" && (currentEpoch < parseInt(stakeAccount.deactivationEpoch!) + 1),
     withdrawing: !!currentEpoch && !!stakeAccount && (parseInt(stakeAccount.deactivationEpoch!) + 1 <= currentEpoch),
@@ -508,350 +505,57 @@ export default function StakeWidget() {
             </button>
           ))}
         </div>
-        { selectedTab === "stake" &&
-          <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
-            <div className="flex flex-col gap-y-5">
-              <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
-                <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
-                  <span className="text-sm font-mono leading-[100%] text-primary">
-                    {t("ui.native")}
-                  </span>
-                </button>
-                <button className="w-full py-1.5 rounded-lg opacity-50 cursor-not-allowed">
-                  <span className="text-sm font-mono leading-[100%] text-mute">
-                    {t("ui.liquid")}
-                  </span>
-                </button>
-              </div>
-              <div className="flex flex-col gap-y-1">
-                <div className="w-full flex items-center justify-between px-1.5">
-                  <span className="font-medium">{t("ui.amount")}</span>
-                  <div className="flex items-center gap-x-1.5 text-tertiary">
-                    <Icon name="WalletSmall" />
-                    <span className="text-sm font-mono">
-                      {`${formatSol(balance)} SOL`}
-                    </span>
-                  </div>
-                </div>
-                <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
-                  <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
-                    <Image
-                      src="/icons/sol.svg"
-                      alt="Solana Icon"
-                      width={24}
-                      height={24}
-                    />
-                    <span className="leading-[100%]">SOL</span>
-                  </div>
-                  <input
-                    className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                    placeholder="0.00"
-                    disabled={!connected || isBalanceLoading}
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                  />
-                  <Button
-                    size="xs"
-                    label={t("ui.max")}
-                    disabled={!connected || isBalanceLoading}
-                    onClick={handleMaxClick}
-                  />
-                </div>
-                <div className="h-[24px] w-full">
-                  {numericAmount > 0 && (
-                    <motion.div
-                      className="w-full flex"
-                      initial={{ opacity: 0 }}
-                      animate={{
-                        opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
-                      }}
-                      transition={{ duration: 0.5, ease: anticipate }}
-                    >
-                      <Badge
-                        color="rgb(173,185,210)"
-                        className="font-mono ml-auto"
-                        value={`~${formatCurrency(numericAmount * solPrice)} USD`}
-                      />
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-y-5 items-center justify-center">
-              {/* Transaction Status */}
-              {transactionStatus.type && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={classNames(
-                    "w-full p-3 rounded-lg text-sm font-mono text-center",
-                    transactionStatus.type === 'success'
-                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                      : "bg-red-500/20 text-red-400 border border-red-500/30"
-                  )}
-                >
-                  {transactionStatus.message}
-                </motion.div>
-              )}
-              {!connected ? (
-                <WalletMultiButton isLoading={isBalanceLoading} />
-              ) : (
-                <Button
-                  icon={"Target"}
-                  className="w-full relative"
-                  label={"Stake SOL"}
-                  disabled={!canStakeAction}
-                  isLoading={isProcessing}
-                  onClick={handleStake}
-                />
-              )}
-              <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
-                <span className="text-secondary">{t("ui.disclaimer")}</span>
-                <span className="text-brand-secondary"> {t("ui.terms")}</span>
-              </span>
-            </div>
-          </div>
-        }
-        { selectedTab === "merge" && (
-          <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
-            <div className="flex flex-col gap-y-4">
-              <div className="flex flex-col gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeSource">
-                    {t("ui.mergeSource") || "Source Account"}
-                  </label>
-                  <select
-                    id="mergeSource"
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-                    value={mergeSource}
-                    onChange={e => setMergeSource(e.target.value !== '' ? e.target.value : undefined)}
-                    disabled={!connected || isBalanceLoading || isProcessing || !stakeAccounts?.length}
-                  >
-                    <option value={''}>Select Source</option>
-                    {stakeAccounts?.filter((account) => {
-                      if (mergeDestination) {
-                        return account.address !== mergeDestination;
-                      }
-                      return true;
-                    }).map((account) => (
-                      <option key={account.address} value={account.address}>
-                        {account.address}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeDestination">
-                    {t("ui.mergeDestination") || "Destination Account"}
-                  </label>
-                  <select
-                    id="mergeDestination"
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-                    value={mergeDestination}
-                    onChange={e => setMergeDestination(e.target.value !== '' ? e.target.value : undefined)}
-                    disabled={!connected || isBalanceLoading || isProcessing || !stakeAccounts?.length}
-                  >
-                    <option value={''}>Select Destination</option>
-                    {stakeAccounts?.filter((account) => {
-                      if (mergeSource) {
-                        return account.address !== mergeSource;
-                      }
-                      return true;
-                    }).map((account) => (
-                      <option key={account.address} value={account.address}>
-                        {account.address}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-y-5 items-center justify-center">
-              {transactionStatus.type && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={classNames(
-                    "w-full p-3 rounded-lg text-sm font-mono text-center",
-                    transactionStatus.type === 'success'
-                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                      : "bg-red-500/20 text-red-400 border border-red-500/30"
-                  )}
-                >
-                  {transactionStatus.message}
-                </motion.div>
-              )}
-              {!connected ? (
-                <WalletMultiButton isLoading={isBalanceLoading} />
-              ) : (
-                <Button
-                  className="w-full relative"
-                  size="lg"
-                  label={t("ui.merge") || "Merge"}
-                  disabled={!canMergeAction}
-                  isLoading={isProcessing}
-                  onClick={handleMerge}
-                />
-              )}
-              <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
-                <span className="text-secondary">{t("ui.disclaimer")}</span>
-                <span className="text-brand-secondary"> {t("ui.terms")}</span>
-              </span>
-            </div>
-          </div>
+        {selectedTab === "stake" && (
+          <StakeTabContent
+            connected={connected}
+            balance={balance}
+            amount={amount}
+            numericAmount={numericAmount}
+            solPrice={solPrice}
+            isBalanceLoading={isBalanceLoading}
+            isProcessing={isProcessing}
+            transactionStatus={transactionStatus}
+            onAmountChange={handleAmountChange}
+            onMaxClick={handleMaxClick}
+            onStake={handleStake}
+            canStakeAction={canStakeAction}
+          />
         )}
-        { selectedTab === "unstake" && (
-          <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
-            <div className="flex flex-col gap-y-5">
-              <div className="rounded-xl p-1 border border-border w-full gap-x-1 flex items-center">
-                <button className="w-full py-1.5 bg-background-card-foreground rounded-lg">
-                  <span className="text-sm font-mono leading-[100%] text-primary">
-                    {t("ui.native")}
-                  </span>
-                </button>
-                <button className="w-full py-1.5 rounded-lg opacity-50 cursor-not-allowed">
-                  <span className="text-sm font-mono leading-[100%] text-mute">
-                    {t("ui.liquid")}
-                  </span>
-                </button>
-              </div>
-              <div className="flex flex-col gap-y-2">
-                <label htmlFor="unstakeSource" className="text-sm font-medium text-primary">
-                  {"Stake Account"}
-                </label>
-                <select
-                  id="unstakeSource"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-                  value={unstakeAccount}
-                  onChange={e => setUnstakeAccount(e.target.value !== '' ? e.target.value : undefined)}
-                >
-                  <option key="default" value={''}>Select Account</option>
-                  {stakeAccounts?.map((account) => (
-                    <option key={account.address} value={account.address}>
-                      {account.address}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-y-1">
-                <div className="w-full flex items-center justify-between px-1.5">
-                  <span className="font-medium">{t("ui.amount")}</span>
-                  {deactivationStatus.withdrawing ? null : (
-                    <div className="flex items-center gap-x-1.5 text-tertiary">
-                      <Icon name="WalletSmall" />
-                      <span className="text-sm font-mono">
-                        {`${formatSol(!unstakeAccount ? 0 : stakeAccount?.amountStaked ?? 0)} SOL staked`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
-                  <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
-                    <Image
-                      src="/icons/sol.svg"
-                      alt="Solana Icon"
-                      width={24}
-                      height={24}
-                    />
-                    <span className="leading-[100%]">SOL</span>
-                  </div>
-                  {deactivationStatus.withdrawing ? (
-                    <input
-                      className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                      placeholder={formatSol(stakeAccount?.amountStaked ?? 0)}
-                      disabled={!connected || isBalanceLoading || !unstakeAccount || deactivationStatus.deactivating}
-                      value={formatSol(stakeAccount?.amountStaked ?? 0)}
-                      readOnly
-                    />
-                  ) : (
-                    <input
-                      className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                      placeholder="0.00"
-                      disabled={!connected || isBalanceLoading || !unstakeAccount || deactivationStatus.deactivating}
-                      value={amount}
-                      onChange={(e) => handleAmountChange(e.target.value)}
-                    />
-                  )}
-                  <Button
-                    size="xs"
-                    label={t("ui.max")}
-                    disabled={!connected || isBalanceLoading || !unstakeAccount || deactivationStatus.deactivating}
-                    onClick={handleMaxClick}
-                  />
-                </div>
-                <div className="h-[24px] w-full">
-                  {numericAmount > 0 && (
-                    <motion.div
-                      className="w-full flex"
-                      initial={{ opacity: 0 }}
-                      animate={{
-                        opacity: [0, 1, 0.2, 1, 0.4, 1, 0.6, 1, 0.8, 1],
-                      }}
-                      transition={{ duration: 0.5, ease: anticipate }}
-                    >
-                      <Badge
-                        color="rgb(173,185,210)"
-                        className="font-mono ml-auto"
-                        value={`~${formatCurrency(numericAmount * solPrice)} USD`}
-                      />
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-y-5 items-center justify-center">
-              {transactionStatus.type && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={classNames(
-                    "w-full p-3 rounded-lg text-sm font-mono text-center",
-                    transactionStatus.type === 'success'
-                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                      : "bg-red-500/20 text-red-400 border border-red-500/30"
-                  )}
-                >
-                  {transactionStatus.message}
-                </motion.div>
-              )}
-              {!connected && (
-                <WalletMultiButton isLoading={isBalanceLoading} />
-              )}
-              {(!stakeAccount || deactivationStatus.active) && (
-                <Button
-                  icon={"ArrowLeft"}
-                  className="w-full relative"
-                  label="Undelegate Stake"
-                  disabled={!canUnstakeAction}
-                  isLoading={isProcessing}
-                  onClick={handleDeactivate}
-                />
-              )}
-              {deactivationStatus.deactivating && (
-                <Button
-                  className="w-full relative"
-                  label="Withdraw in Next Epoch"
-                  disabled={true}
-                  isLoading={isProcessing}
-                  onClick={undefined}
-                />
-              )}
-              {deactivationStatus.withdrawing && (
-                <Button
-                  icon={"ArrowLeft"}
-                  className="w-full relative"
-                  label="Withdraw Stake"
-                  disabled={!canUnstakeAction}
-                  isLoading={isProcessing}
-                  onClick={handleWithdraw}
-                />
-              )}
-              <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
-                <span className="text-secondary">{t("ui.disclaimer")}</span>
-                <span className="text-brand-secondary"> {t("ui.terms")}</span>
-              </span>
-            </div>
-          </div>
+        {selectedTab === "merge" && (
+          <MergeTabContent
+            connected={connected}
+            stakeAccounts={stakeAccounts}
+            mergeSource={mergeSource}
+            mergeDestination={mergeDestination}
+            isProcessing={isProcessing}
+            isBalanceLoading={isBalanceLoading}
+            canMergeAction={canMergeAction}
+            transactionStatus={transactionStatus}
+            onMerge={handleMerge}
+            onMergeSourceChange={setMergeSource}
+            onMergeDestinationChange={setMergeDestination}
+          />
+        )}
+        {selectedTab === "unstake" && (
+          <UnstakeTabContent
+            connected={connected}
+            stakeAccounts={stakeAccounts}
+            selectedStakeAccount={unstakeAccount}
+            selectedStakeAmount={stakeAccount?.amountStaked ?? 0}
+            deactivationStatus={deactivationStatus}
+            amount={amount}
+            numericAmount={numericAmount}
+            solPrice={solPrice}
+            isBalanceLoading={isBalanceLoading}
+            isProcessing={isProcessing}
+            canUnstakeAction={canUnstakeAction}
+            transactionStatus={transactionStatus}
+            onStakeAccountChange={setUnstakeAccount}
+            onAmountChange={handleAmountChange}
+            onMaxClick={handleMaxClick}
+            onDeactivate={handleDeactivate}
+            onWithdraw={handleWithdraw}
+          />
         )}
       </div>
     </div>
