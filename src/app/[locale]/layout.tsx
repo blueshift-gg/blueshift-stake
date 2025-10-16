@@ -4,7 +4,7 @@ import "../globals.css";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { routing } from "@/i18n/routing";
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import Header from "@/components/Header/Header";
 import WalletProvider from "@/contexts/WalletProvider";
 import Footer from "@/components/Footer/Footer";
@@ -77,23 +77,25 @@ export default async function RootLayout({
     notFound();
   }
 
+  const messages = await getMessages({ locale });
+
   return (
     <html lang={locale}>
-      <NextIntlClientProvider>
-        <WalletProvider>
-          <TRPCProvider>
-            <body
-              className={`${FunnelDisplay.variable} ${MontechV2.variable} antialiased flex min-h-dvh flex-col`}
-            >
+      <body
+        className={`${FunnelDisplay.variable} ${MontechV2.variable} antialiased flex min-h-dvh flex-col`}
+      >
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <WalletProvider>
+            <TRPCProvider>
               <Header />
               <main className="flex-1">
                 {children}
               </main>
               <Footer />
-            </body>
-          </TRPCProvider>
-        </WalletProvider>
-      </NextIntlClientProvider>
+            </TRPCProvider>
+          </WalletProvider>
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }
