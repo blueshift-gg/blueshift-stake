@@ -8,7 +8,6 @@ import Button from "@/components/Button/Button";
 import Icon from "@/components/Icon/Icon";
 import Badge from "@/components/Badge/Badge";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useStakeUiStore } from "@/stores/stakingStore";
 import { stakingService } from "@/services/stakingService";
 import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
@@ -24,15 +23,16 @@ import {
 } from "@/utils/format";
 
 export default function StakeWidget() {
-  const {
-    selectedTab,
-    setSelectedTab,
-    transactionStatus,
-    setTransactionStatus,
-    clearTransactionStatus,
-  } = useStakeUiStore();
+  const [selectedTab, setSelectedTab] = useState<"stake" | "unstake" | "merge">("stake");
+  const [transactionStatus, setTransactionStatus] = useState<{
+    type: "success" | "error" | null;
+    message: string;
+  }>({ type: null, message: "" });
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const clearTransactionStatus = useCallback(() => {
+    setTransactionStatus({ type: null, message: "" });
+  }, [setTransactionStatus]);
 
   const t = useTranslations();
   const { publicKey, signTransaction, connected } = useWallet();
@@ -172,7 +172,7 @@ export default function StakeWidget() {
     }
 
     setIsProcessing(true);
-    setTransactionStatus({ type: null, message: '' });
+    clearTransactionStatus();
 
     try {
       const result = await stakingService.createStake(
@@ -188,10 +188,10 @@ export default function StakeWidget() {
             minimumFractionDigits: 0,
             maximumFractionDigits: 9,
           })} SOL!`
-    });
-    setAmount('');
-    // Refresh balance after successful transaction
-    scheduleBalanceRefresh();
+        });
+        setAmount('');
+        // Refresh balance after successful transaction
+        scheduleBalanceRefresh();
       } else {
         setTransactionStatus({
           type: 'error',
@@ -247,7 +247,7 @@ export default function StakeWidget() {
     }
 
     setIsProcessing(true);
-    setTransactionStatus({ type: null, message: '' });
+    clearTransactionStatus();
 
     try {
       const result = await stakingService.deactivateStake(
@@ -306,7 +306,7 @@ export default function StakeWidget() {
     }
 
     setIsProcessing(true);
-    setTransactionStatus({ type: null, message: '' });
+    clearTransactionStatus();
 
     try {
       const result = await stakingService.withdrawStake(
@@ -361,7 +361,7 @@ export default function StakeWidget() {
     }
 
     setIsProcessing(true);
-    setTransactionStatus({ type: null, message: '' });
+    clearTransactionStatus();
 
     try {
       const result = await stakingService.mergeStake(
