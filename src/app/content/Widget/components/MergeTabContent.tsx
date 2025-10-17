@@ -11,7 +11,6 @@ type StakeAccountSummary = {
   amountStaked: number;
   stakingAuthority: string;
   withdrawAuthority: string;
-  status: string;
 };
 
 interface MergeTabContentProps {

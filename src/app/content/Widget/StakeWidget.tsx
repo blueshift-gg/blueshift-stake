@@ -5,10 +5,10 @@ import { anticipate, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { stakingService } from "@/services/stakingService";
 import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import { trpc } from "@/utils/trpc";
-import { PublicKey } from "@solana/web3.js";
+import { Transaction } from "@solana/web3.js";
+import { Buffer } from "buffer";
 import {
   formatAmountInput,
   formatNumber,
@@ -19,16 +19,20 @@ import { MergeTabContent } from "./components/MergeTabContent";
 import { UnstakeTabContent } from "./components/UnstakeTabContent";
 import type { DeactivationStatus, TransactionStatus, StakeTab } from "./types";
 
+const EXPLORER_BASE_URL = (process.env.NEXT_PUBLIC_SOLANA_EXPLORER_BASE_URL ?? "https://explorer.solana.com/tx").replace(/\/$/, "");
+const EXPLORER_CLUSTER = process.env.NEXT_PUBLIC_SOLANA_EXPLORER_CLUSTER;
+
 export default function StakeWidget() {
   const [selectedTab, setSelectedTab] = useState<StakeTab>("stake");
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>({
     type: null,
     message: "",
+    link: undefined,
   });
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const clearTransactionStatus = useCallback(() => {
-    setTransactionStatus({ type: null, message: "" });
+    setTransactionStatus({ type: null, message: "", link: undefined });
   }, [setTransactionStatus]);
 
   const t = useTranslations();
@@ -42,7 +46,6 @@ export default function StakeWidget() {
     data: balanceData,
     status: balanceStatus,
     fetchStatus: balanceFetchStatus,
-    refetch: refetchBalance,
   } = trpc.stake.balance.useQuery(
     { address: walletAddress },
     {
@@ -55,20 +58,22 @@ export default function StakeWidget() {
   const isBalanceLoading =
     balanceStatus === "pending" && balanceFetchStatus === "fetching";
 
-  const scheduleBalanceRefresh = useCallback(() => {
-    if (!connected) {
-      return;
-    }
+  const utils = trpc.useUtils();
 
-    setTimeout(() => {
-      void refetchBalance();
-    }, 2000);
-  }, [connected, refetchBalance]);
+  const buildExplorerUrl = useCallback((signature: string) => {
+    const clusterSuffix = EXPLORER_CLUSTER ? `?cluster=${EXPLORER_CLUSTER}` : "";
+    return `${EXPLORER_BASE_URL}/${signature}${clusterSuffix}`;
+  }, []);
 
-  const solPrice = 165.44; // In production, fetch from price API
+  const { data: solPriceData } = trpc.stake.solPrice.useQuery(undefined, {
+    refetchInterval: 60_000,
+    staleTime: 60_000,
+  });
+
+  const solPrice = solPriceData?.price ?? 0;
   const minStakeAmount = getMinimumStakeAmount();
 
-  const { data: stakeAccounts, refetch: refetchStakeAccounts } = trpc.stake.poolsbyAuthority.useQuery(
+  const { data: stakeAccounts } = trpc.stake.poolsbyAuthority.useQuery(
     {
       stakingAuthority: publicKey?.toBase58() || "",
     },
@@ -82,16 +87,41 @@ export default function StakeWidget() {
   const [mergeDestination, setMergeDestination] = useState<string | undefined>(undefined);
   const [unstakeAccount, setUnstakeAccount] = useState<string | undefined>(undefined);
 
-  const { data: stakeAccount, refetch: refetchStakeAccount } = trpc.stake.pool.useQuery({
+  const { data: stakeAccount } = trpc.stake.pool.useQuery({
     address: unstakeAccount || ""
   }, {
     enabled: !!unstakeAccount
   });
 
-  const { data: currentEpoch } = trpc.stake.currentEpoch.useQuery(undefined, {
-    enabled: !!publicKey,
-    refetchInterval: 5000,
-  })
+  const delegatedStake = stakeAccount?.delegatedStake ?? 0;
+  const withdrawableAmount = stakeAccount?.withdrawableAmount ?? 0;
+  const activeStakeAmount = stakeAccount?.activeStake ?? 0;
+  const inactiveStakeAmount = stakeAccount?.inactiveStake ?? 0;
+  const activationState = stakeAccount?.status ?? "unknown";
+  const rentExemptReserve = stakeAccount?.rentExemptReserve ?? 0;
+
+  const invalidateStakeData = useCallback(async (options?: { includeSelectedPool?: boolean }) => {
+    if (!walletAddress) {
+      return;
+    }
+
+    const tasks: Array<Promise<unknown>> = [
+      utils.stake.balance.invalidate({ address: walletAddress }),
+      utils.stake.poolsbyAuthority.invalidate({ stakingAuthority: walletAddress }),
+    ];
+
+    if (options?.includeSelectedPool && unstakeAccount) {
+      tasks.push(utils.stake.pool.invalidate({ address: unstakeAccount }));
+    }
+
+    await Promise.all(tasks);
+  }, [utils, walletAddress, unstakeAccount]);
+
+  const prepareStakeTransaction = trpc.stake.prepareStakeTransaction.useMutation();
+  const prepareDeactivateStakeTransaction = trpc.stake.prepareDeactivateStakeTransaction.useMutation();
+  const prepareWithdrawStakeTransaction = trpc.stake.prepareWithdrawStakeTransaction.useMutation();
+  const prepareMergeStakeTransaction = trpc.stake.prepareMergeStakeTransaction.useMutation();
+  const submitSignedTransaction = trpc.stake.submitSignedTransaction.useMutation();
 
   const tabs: Array<{ id: StakeTab; label: string }> = [
     { id: "stake", label: t("ui.stake") },
@@ -128,8 +158,11 @@ export default function StakeWidget() {
       const maxStakeAmount = Math.max(0, balance - 0.01);
       setAmount(formatAmountInput(maxStakeAmount, 4));
     } else if (selectedTab === "unstake") {
-      // For unstaking, show total staked amount
-      setAmount(formatAmountInput(stakeAccount?.amountStaked ?? 0, 4));
+      if (withdrawableAmount > 0) {
+        setAmount(formatAmountInput(withdrawableAmount, 9));
+      } else {
+        setAmount(formatAmountInput(delegatedStake, 9));
+      }
     } else {
       setAmount("");
     }
@@ -142,7 +175,10 @@ export default function StakeWidget() {
 
   // Handle stake operation
   const handleStake = async () => {
-    if (!publicKey || !signTransaction) return;
+    if (!publicKey || !signTransaction) {
+      setTransactionStatus({ type: "error", message: "Wallet not ready" });
+      return;
+    }
 
     if (!isValidSolAmount(normalizedAmount)) {
       return;
@@ -172,29 +208,49 @@ export default function StakeWidget() {
     clearTransactionStatus();
 
     try {
-      const result = await stakingService.createStake(
-        publicKey,
-        stakeAmount,
-        signTransaction
-      );
+      const preparation = await prepareStakeTransaction.mutateAsync({
+        walletAddress,
+        amount: stakeAmount,
+      });
 
-      if (result.success) {
+      if (!preparation.success) {
         setTransactionStatus({
-          type: 'success',
-          message: `Successfully staked ${formatNumber(stakeAmount, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 9,
-          })} SOL!`
+          type: "error",
+          message: preparation.error ?? "Failed to prepare stake transaction",
         });
-        setAmount('');
-        // Refresh balance after successful transaction
-        scheduleBalanceRefresh();
-      } else {
-        setTransactionStatus({
-          type: 'error',
-          message: result.error || 'Transaction failed'
-        });
+        return;
       }
+
+      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const signedTransaction = await signTransaction(transaction);
+
+      const submission = await submitSignedTransaction.mutateAsync({
+        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
+      });
+
+      if (!submission.success) {
+        setTransactionStatus({
+          type: "error",
+          message: submission.error ?? "Transaction failed",
+        });
+        return;
+      }
+
+      const explorerUrl = buildExplorerUrl(submission.signature);
+
+      setTransactionStatus({
+        type: "success",
+        message: `Successfully staked ${formatNumber(stakeAmount, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 9,
+        })} SOL!`,
+        link: {
+          href: explorerUrl,
+          label: "View on Solana Explorer",
+        },
+      });
+      setAmount("");
+      void invalidateStakeData();
     } catch (error) {
       setTransactionStatus({
         type: 'error',
@@ -203,8 +259,6 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
-
-    refetchStakeAccounts();
   };
 
   // Handle deactivate operation
@@ -235,10 +289,13 @@ export default function StakeWidget() {
       return;
     }
 
-    if (!stakeAccount || unstakeAmount > ((stakeAccount.amountStaked + await stakingService.getMinimumBalanceForRentExemption()) || 0)) {
+    if (unstakeAmount > delegatedStake) {
       setTransactionStatus({
         type: 'error',
-        message: 'Insufficient staked SOL in selected account'
+        message: `Amount exceeds delegated stake (${formatNumber(delegatedStake, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 9,
+        })} SOL)`,
       });
       return;
     }
@@ -247,30 +304,50 @@ export default function StakeWidget() {
     clearTransactionStatus();
 
     try {
-      const result = await stakingService.deactivateStake(
-        publicKey,
-        new PublicKey(unstakeAccount),
-        unstakeAmount,
-        signTransaction
-      );
+      const preparation = await prepareDeactivateStakeTransaction.mutateAsync({
+        walletAddress,
+        stakeAccountAddress: unstakeAccount,
+        withdrawAmount: unstakeAmount,
+      });
 
-      if (result.success) {
+      if (!preparation.success) {
         setTransactionStatus({
-          type: 'success',
-          message: `Successfully deactivated ${formatNumber(unstakeAmount, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 9,
-          })} SOL!`
+          type: "error",
+          message: preparation.error ?? "Failed to prepare deactivate transaction",
         });
-        setAmount('');
-        // Refresh balance after successful transaction
-        scheduleBalanceRefresh();
-      } else {
-        setTransactionStatus({
-          type: 'error',
-          message: result.error || 'Transaction failed'
-        });
+        return;
       }
+
+      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const signedTransaction = await signTransaction(transaction);
+
+      const submission = await submitSignedTransaction.mutateAsync({
+        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
+      });
+
+      if (!submission.success) {
+        setTransactionStatus({
+          type: "error",
+          message: submission.error ?? "Transaction failed",
+        });
+        return;
+      }
+
+      const explorerUrl = buildExplorerUrl(submission.signature);
+
+      setTransactionStatus({
+        type: "success",
+        message: `Successfully deactivated ${formatNumber(unstakeAmount, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 9,
+        })} SOL!`,
+        link: {
+          href: explorerUrl,
+          label: "View on Solana Explorer",
+        },
+      });
+      setAmount("");
+      void invalidateStakeData({ includeSelectedPool: true });
     } catch (error) {
       setTransactionStatus({
         type: 'error',
@@ -279,9 +356,6 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
-
-    refetchStakeAccounts();
-    refetchStakeAccount();
   };
 
   // Handle withdraw operation
@@ -302,30 +376,61 @@ export default function StakeWidget() {
       return;
     }
 
+    if (withdrawableAmount <= 0) {
+      setTransactionStatus({
+        type: 'error',
+        message: 'No inactive balance available to withdraw yet',
+      });
+      return;
+    }
+
     setIsProcessing(true);
     clearTransactionStatus();
 
     try {
-      const result = await stakingService.withdrawStake(
-        publicKey,
-        new PublicKey(unstakeAccount),
-        signTransaction
-      );
+      const preparation = await prepareWithdrawStakeTransaction.mutateAsync({
+        walletAddress,
+        stakeAccountAddress: unstakeAccount,
+      });
 
-      if (result.success) {
+      if (!preparation.success) {
         setTransactionStatus({
-          type: 'success',
-          message: `Successfully withdrew SOL!`
+          type: "error",
+          message: preparation.error ?? "Failed to prepare withdraw transaction",
         });
-        setAmount('');
-        // Refresh balance after successful transaction
-        scheduleBalanceRefresh();
-      } else {
-        setTransactionStatus({
-          type: 'error',
-          message: result.error || 'Transaction failed'
-        });
+        return;
       }
+
+      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const signedTransaction = await signTransaction(transaction);
+
+      const submission = await submitSignedTransaction.mutateAsync({
+        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
+      });
+
+      if (!submission.success) {
+        setTransactionStatus({
+          type: "error",
+          message: submission.error ?? "Transaction failed",
+        });
+        return;
+      }
+
+      const explorerUrl = buildExplorerUrl(submission.signature);
+
+      setTransactionStatus({
+        type: "success",
+        message: `Successfully withdrew ${formatNumber(withdrawableAmount, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 9,
+        })} SOL!`,
+        link: {
+          href: explorerUrl,
+          label: "View on Solana Explorer",
+        },
+      });
+      setAmount("");
+      void invalidateStakeData({ includeSelectedPool: true });
     } catch (error) {
       setTransactionStatus({
         type: 'error',
@@ -334,9 +439,6 @@ export default function StakeWidget() {
     } finally {
       setIsProcessing(false);
     }
-
-    refetchStakeAccounts();
-    setUnstakeAccount(undefined);
   };
 
   // Handle merge operation
@@ -361,29 +463,49 @@ export default function StakeWidget() {
     clearTransactionStatus();
 
     try {
-      const result = await stakingService.mergeStake(
-        publicKey,
-        new PublicKey(mergeSource),
-        new PublicKey(mergeDestination),
-        signTransaction
-      );
+      const preparation = await prepareMergeStakeTransaction.mutateAsync({
+        walletAddress,
+        sourceStakeAddress: mergeSource,
+        destinationStakeAddress: mergeDestination,
+      });
 
-      if (result.success) {
+      if (!preparation.success) {
         setTransactionStatus({
-          type: 'success',
-          message: 'Successfully merged stake accounts'
+          type: "error",
+          message: preparation.error ?? "Failed to prepare merge transaction",
         });
-        setAmount('');
-        setMergeSource(undefined);
-        setMergeDestination(undefined);
-        // Refresh balance after successful transaction
-        scheduleBalanceRefresh();
-      } else {
-        setTransactionStatus({
-          type: 'error',
-          message: result.error || 'Transaction failed'
-        });
+        return;
       }
+
+      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const signedTransaction = await signTransaction(transaction);
+
+      const submission = await submitSignedTransaction.mutateAsync({
+        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
+      });
+
+      if (!submission.success) {
+        setTransactionStatus({
+          type: "error",
+          message: submission.error ?? "Transaction failed",
+        });
+        return;
+      }
+
+      const explorerUrl = buildExplorerUrl(submission.signature);
+
+      setTransactionStatus({
+        type: "success",
+        message: "Successfully merged stake accounts",
+        link: {
+          href: explorerUrl,
+          label: "View on Solana Explorer",
+        },
+      });
+      setAmount("");
+      setMergeSource(undefined);
+      setMergeDestination(undefined);
+      void invalidateStakeData();
     } catch (error) {
       setTransactionStatus({
         type: 'error',
@@ -393,7 +515,6 @@ export default function StakeWidget() {
       setIsProcessing(false);
     }
 
-    refetchStakeAccounts();
   };
 
   const canStakeAction = connected &&
@@ -424,12 +545,29 @@ export default function StakeWidget() {
     hasMergeSelection &&
     shareWithdrawAuthority;
 
-  const canUnstakeAction = connected &&
+  const canDeactivateAction = connected &&
     isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
     !isBalanceLoading &&
     !!unstakeAccount &&
-    numericAmount <= (stakeAccount?.amountStaked ?? 0);
+    numericAmount > 0 &&
+    numericAmount <= delegatedStake;
+
+  const canWithdrawAction = connected &&
+    !isProcessing &&
+    !isBalanceLoading &&
+    !!unstakeAccount &&
+    withdrawableAmount > 0;
+
+  const stakeAccountSummary = stakeAccount ? {
+    totalBalance: stakeAccount.amountStaked,
+    delegatedStake,
+    withdrawableAmount,
+    activeStake: activeStakeAmount,
+    inactiveStake: inactiveStakeAmount,
+    status: activationState ?? "unknown",
+    rentExemptReserve,
+  } : undefined;
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
@@ -451,26 +589,20 @@ export default function StakeWidget() {
   }, [mergeSource, mergeDestination]);
 
   const deactivationStatus: DeactivationStatus = {
-    active: !!stakeAccount && stakeAccount.deactivationEpoch === "18446744073709551615",
-    deactivating: !!currentEpoch && !!stakeAccount && stakeAccount.deactivationEpoch !== "18446744073709551615" && (currentEpoch < parseInt(stakeAccount.deactivationEpoch!) + 1),
-    withdrawing: !!currentEpoch && !!stakeAccount && (parseInt(stakeAccount.deactivationEpoch!) + 1 <= currentEpoch),
-  }
+    active: !!stakeAccount && (activationState === "active" || activationState === "activating"),
+    deactivating: !!stakeAccount && activationState === "deactivating",
+    withdrawing: !!stakeAccount && withdrawableAmount > 0,
+  };
 
   useEffect(() => {
-    const updateAmount = async () => {
-      if (!deactivationStatus.withdrawing || !unstakeAccount) {
-        return;
-      }
+    if (!unstakeAccount) {
+      return;
+    }
 
-      const balanceValue = await stakingService.getBalance(
-        new PublicKey(unstakeAccount)
-      );
-
-    setAmount(formatAmountInput(balanceValue, 4));
-    };
-
-    updateAmount();
-  }, [deactivationStatus.withdrawing, unstakeAccount]);
+    if (withdrawableAmount > 0) {
+      setAmount(formatAmountInput(withdrawableAmount, 9));
+    }
+  }, [unstakeAccount, withdrawableAmount]);
 
   return (
     <div className="wrapper flex items-center justify-center w-full">
@@ -541,14 +673,15 @@ export default function StakeWidget() {
             connected={connected}
             stakeAccounts={stakeAccounts}
             selectedStakeAccount={unstakeAccount}
-            selectedStakeAmount={stakeAccount?.amountStaked ?? 0}
+            stakeAccountSummary={stakeAccountSummary}
             deactivationStatus={deactivationStatus}
             amount={amount}
             numericAmount={numericAmount}
             solPrice={solPrice}
             isBalanceLoading={isBalanceLoading}
             isProcessing={isProcessing}
-            canUnstakeAction={canUnstakeAction}
+            canDeactivateAction={canDeactivateAction}
+            canWithdrawAction={canWithdrawAction}
             transactionStatus={transactionStatus}
             onStakeAccountChange={setUnstakeAccount}
             onAmountChange={handleAmountChange}

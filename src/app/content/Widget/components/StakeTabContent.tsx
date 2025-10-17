@@ -82,7 +82,7 @@ export function StakeTabContent({
             <Button size="xs" label={t("ui.max")} disabled={!connected || isBalanceLoading} onClick={onMaxClick} />
           </div>
           <div className="h-[24px] w-full">
-            {numericAmount > 0 && (
+            {numericAmount > 0 && solPrice > 0 && (
               <motion.div
                 className="w-full flex"
                 initial={{ opacity: 0 }}

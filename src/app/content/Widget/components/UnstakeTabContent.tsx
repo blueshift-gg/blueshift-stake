@@ -11,18 +11,29 @@ import { useTranslations } from "next-intl";
 import type { DeactivationStatus, TransactionStatus } from "../types";
 import { TransactionStatusNotice } from "./TransactionStatusNotice";
 
+interface StakeAccountSummary {
+  totalBalance: number;
+  delegatedStake: number;
+  withdrawableAmount: number;
+  activeStake: number;
+  inactiveStake: number;
+  status: string;
+  rentExemptReserve: number;
+}
+
 interface UnstakeTabContentProps {
   connected: boolean;
   stakeAccounts?: Array<{ address: string }>;
   selectedStakeAccount?: string;
-  selectedStakeAmount: number;
+  stakeAccountSummary?: StakeAccountSummary;
   deactivationStatus: DeactivationStatus;
   amount: string;
   numericAmount: number;
   solPrice: number;
   isBalanceLoading: boolean;
   isProcessing: boolean;
-  canUnstakeAction: boolean;
+  canDeactivateAction: boolean;
+  canWithdrawAction: boolean;
   transactionStatus: TransactionStatus;
   onStakeAccountChange: (value: string | undefined) => void;
   onAmountChange: (value: string) => void;
@@ -35,14 +46,15 @@ export function UnstakeTabContent({
   connected,
   stakeAccounts,
   selectedStakeAccount,
-  selectedStakeAmount,
+  stakeAccountSummary,
   deactivationStatus,
   amount,
   numericAmount,
   solPrice,
   isBalanceLoading,
   isProcessing,
-  canUnstakeAction,
+  canDeactivateAction,
+  canWithdrawAction,
   transactionStatus,
   onStakeAccountChange,
   onAmountChange,
@@ -54,6 +66,57 @@ export function UnstakeTabContent({
 
   const handleStakeAccountChange = (value: string) => {
     onStakeAccountChange(value !== "" ? value : undefined);
+  };
+
+  const delegatedStake = stakeAccountSummary?.delegatedStake ?? 0;
+  const withdrawableNow = stakeAccountSummary?.withdrawableAmount ?? 0;
+  const inactiveStake = stakeAccountSummary?.inactiveStake ?? 0;
+  const rentReserve = stakeAccountSummary?.rentExemptReserve ?? 0;
+  const status = stakeAccountSummary?.status ?? "unknown";
+  const derivedActiveStake = Math.max(
+    stakeAccountSummary ? stakeAccountSummary.delegatedStake - inactiveStake : 0,
+    0
+  );
+  const activeStake = stakeAccountSummary?.activeStake ?? derivedActiveStake;
+  const showCoolingDownNotice = status === "deactivating" && withdrawableNow === 0;
+
+  const renderStat = (label: string, value: string, highlight = false) => (
+    <div
+      className={`flex items-center justify-between rounded-md border px-3 py-2 bg-background-card/60 ${
+        highlight ? "border-brand-primary/60" : "border-border/60"
+      }`}
+    >
+      <span className="text-xs uppercase tracking-wide text-tertiary">{label}</span>
+      <span className={`font-mono text-sm ${highlight ? "text-brand-secondary" : "text-primary"}`}>
+        {value}
+      </span>
+    </div>
+  );
+
+  const renderStakeStatusStats = () => {
+    if (status === "activating") {
+      return (
+        <>
+          {activeStake > 0 ? renderStat("Active Stake", `${formatSol(activeStake)} SOL`) : null}
+          {inactiveStake > 0 ? renderStat("Activating Stake", `${formatSol(inactiveStake)} SOL`) : null}
+        </>
+      );
+    }
+
+    if (status === "deactivating") {
+      return (
+        <>
+          {inactiveStake > 0 ? renderStat("Inactive Stake", `${formatSol(inactiveStake)} SOL`) : null}
+          {activeStake > 0 ? renderStat("Deactivating Stake", `${formatSol(activeStake)} SOL`) : null}
+        </>
+      );
+    }
+
+    if (status === "inactive") {
+      return inactiveStake > 0 ? renderStat("Inactive stake", `${formatSol(inactiveStake)} SOL`) : null;
+    }
+
+    return activeStake > 0 ? renderStat("Active stake", `${formatSol(activeStake)} SOL`) : null;
   };
 
   return (
@@ -96,7 +159,7 @@ export function UnstakeTabContent({
               <div className="flex items-center gap-x-1.5 text-tertiary">
                 <Icon name="WalletSmall" />
                 <span className="text-sm font-mono">
-                  {`${formatSol(selectedStakeAccount ? selectedStakeAmount : 0)} SOL staked`}
+                  {`${formatSol(selectedStakeAccount ? delegatedStake : 0)} SOL delegated`}
                 </span>
               </div>
             )}
@@ -109,9 +172,9 @@ export function UnstakeTabContent({
             {deactivationStatus.withdrawing ? (
               <input
                 className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                placeholder={formatSol(selectedStakeAmount)}
+                placeholder={formatSol(withdrawableNow)}
                 disabled={!connected || isBalanceLoading || !selectedStakeAccount || deactivationStatus.deactivating}
-                value={formatSol(selectedStakeAmount)}
+                value={formatSol(withdrawableNow)}
                 readOnly
               />
             ) : (
@@ -131,7 +194,7 @@ export function UnstakeTabContent({
             />
           </div>
           <div className="h-[24px] w-full">
-            {numericAmount > 0 && (
+            {numericAmount > 0 && solPrice > 0 && (
               <motion.div
                 className="w-full flex"
                 initial={{ opacity: 0 }}
@@ -149,37 +212,49 @@ export function UnstakeTabContent({
             )}
           </div>
         </div>
+        {selectedStakeAccount && stakeAccountSummary && (
+          <div className="grid gap-2 rounded-xl border border-border/60 bg-background-card/40 px-3 py-3">
+            {renderStat("Delegated stake", `${formatSol(delegatedStake)} SOL`)}
+            {/* {renderStat("Ready to withdraw", `${formatSol(withdrawableNow)} SOL`, withdrawableNow > 0)} */}
+            {renderStakeStatusStats()}
+            {renderStat("Rent reserve", `${formatSol(rentReserve)} SOL`)}
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-y-5 items-center justify-center">
-  <TransactionStatusNotice status={transactionStatus} />
+        <TransactionStatusNotice status={transactionStatus} />
         {!connected && <WalletMultiButton isLoading={isBalanceLoading} />}
-        {(!selectedStakeAccount || deactivationStatus.active) && (
-          <Button
-            icon="ArrowLeft"
-            className="w-full relative"
-            label="Undelegate Stake"
-            disabled={!canUnstakeAction}
-            isLoading={isProcessing}
-            onClick={onDeactivate}
-          />
-        )}
-        {deactivationStatus.deactivating && (
-          <Button
-            className="w-full relative"
-            label="Withdraw in Next Epoch"
-            disabled
-            isLoading={isProcessing}
-          />
-        )}
-        {deactivationStatus.withdrawing && (
-          <Button
-            icon="ArrowLeft"
-            className="w-full relative"
-            label="Withdraw Stake"
-            disabled={!canUnstakeAction}
-            isLoading={isProcessing}
-            onClick={onWithdraw}
-          />
+        {connected && selectedStakeAccount && (
+          <div className="flex w-full flex-col gap-y-3">
+            {(status === "active" || status === "activating") && (
+              <Button
+                icon="ArrowLeft"
+                className="w-full relative"
+                label="Undelegate Stake"
+                disabled={!canDeactivateAction}
+                isLoading={isProcessing}
+                onClick={onDeactivate}
+              />
+            )}
+            {withdrawableNow > 0 && (
+              <Button
+                icon="ArrowLeft"
+                className="w-full relative"
+                label={`Withdraw ${formatSol(withdrawableNow)} SOL`}
+                disabled={!canWithdrawAction}
+                isLoading={isProcessing}
+                onClick={onWithdraw}
+              />
+            )}
+            {withdrawableNow === 0 && showCoolingDownNotice && (
+              <Button
+                className="w-full relative"
+                label="Stake cooling down"
+                disabled
+                isLoading={isProcessing}
+              />
+            )}
+          </div>
         )}
         <span className="font-medium text-xs mx-auto w-2/3 sm:w-1/2 text-center text-pretty leading-[140%]">
           <span className="text-secondary">{t("ui.disclaimer")}</span>

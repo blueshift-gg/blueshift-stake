@@ -25,7 +25,19 @@ export function TransactionStatusNotice({ status }: TransactionStatusNoticeProps
           : "bg-red-500/20 text-red-400 border border-red-500/30"
       )}
     >
-      {status.message}
+      <span className="inline-flex flex-col gap-y-1">
+        <span>{status.message}</span>
+        {status.link?.href ? (
+          <a
+            href={status.link.href}
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-4"
+          >
+            {status.link.label ?? "View transaction"}
+          </a>
+        ) : null}
+      </span>
     </motion.div>
   );
 }
