@@ -103,9 +103,4 @@ export const stakeRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       return serverStakingService.mergeStakeTransaction(input);
     }),
-  submitSignedTransaction: publicProcedure
-    .input(z.object({ signedTransaction: z.string().min(1) }))
-    .mutation(async ({ input }) => {
-      return serverStakingService.submitSignedTransaction(input.signedTransaction);
-    }),
 });

@@ -4,7 +4,7 @@ import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import { trpc } from "@/utils/trpc";
 import { Transaction } from "@solana/web3.js";
@@ -37,6 +37,7 @@ export default function StakeWidget() {
 
   const t = useTranslations();
   const { publicKey, signTransaction, connected } = useWallet();
+  const { connection } = useConnection();
   const walletAddress = useMemo(
     () => publicKey?.toBase58() ?? "",
     [publicKey]
@@ -121,7 +122,32 @@ export default function StakeWidget() {
   const prepareDeactivateStakeTransaction = trpc.stake.prepareDeactivateStakeTransaction.useMutation();
   const prepareWithdrawStakeTransaction = trpc.stake.prepareWithdrawStakeTransaction.useMutation();
   const prepareMergeStakeTransaction = trpc.stake.prepareMergeStakeTransaction.useMutation();
-  const submitSignedTransaction = trpc.stake.submitSignedTransaction.useMutation();
+
+  const sendSignedTransaction = useCallback(async (signedTransaction: Transaction) => {
+    const serializedTransaction = signedTransaction.serialize();
+    const signature = await connection.sendRawTransaction(serializedTransaction, {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    });
+
+    const blockhashInfo = signedTransaction.recentBlockhash && signedTransaction.lastValidBlockHeight
+      ? {
+          blockhash: signedTransaction.recentBlockhash,
+          lastValidBlockHeight: signedTransaction.lastValidBlockHeight,
+        }
+      : await connection.getLatestBlockhash();
+
+    await connection.confirmTransaction(
+      {
+        signature,
+        blockhash: blockhashInfo.blockhash,
+        lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
+      },
+      "confirmed"
+    );
+
+    return signature;
+  }, [connection]);
 
   const tabs: Array<{ id: StakeTab; label: string }> = [
     { id: "stake", label: t("ui.stake") },
@@ -226,19 +252,8 @@ export default function StakeWidget() {
       const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
       const signedTransaction = await signTransaction(transaction);
 
-      const submission = await submitSignedTransaction.mutateAsync({
-        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
-      });
-
-      if (!submission.success) {
-        setTransactionStatus({
-          type: "error",
-          message: submission.error ?? "Transaction failed",
-        });
-        return;
-      }
-
-      const explorerUrl = buildExplorerUrl(submission.signature);
+      const signature = await sendSignedTransaction(signedTransaction);
+      const explorerUrl = buildExplorerUrl(signature);
 
       setTransactionStatus({
         type: "success",
@@ -320,19 +335,8 @@ export default function StakeWidget() {
       const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
       const signedTransaction = await signTransaction(transaction);
 
-      const submission = await submitSignedTransaction.mutateAsync({
-        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
-      });
-
-      if (!submission.success) {
-        setTransactionStatus({
-          type: "error",
-          message: submission.error ?? "Transaction failed",
-        });
-        return;
-      }
-
-      const explorerUrl = buildExplorerUrl(submission.signature);
+      const signature = await sendSignedTransaction(signedTransaction);
+      const explorerUrl = buildExplorerUrl(signature);
 
       setTransactionStatus({
         type: "success",
@@ -403,19 +407,8 @@ export default function StakeWidget() {
       const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
       const signedTransaction = await signTransaction(transaction);
 
-      const submission = await submitSignedTransaction.mutateAsync({
-        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
-      });
-
-      if (!submission.success) {
-        setTransactionStatus({
-          type: "error",
-          message: submission.error ?? "Transaction failed",
-        });
-        return;
-      }
-
-      const explorerUrl = buildExplorerUrl(submission.signature);
+      const signature = await sendSignedTransaction(signedTransaction);
+      const explorerUrl = buildExplorerUrl(signature);
 
       setTransactionStatus({
         type: "success",
@@ -479,19 +472,8 @@ export default function StakeWidget() {
       const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
       const signedTransaction = await signTransaction(transaction);
 
-      const submission = await submitSignedTransaction.mutateAsync({
-        signedTransaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
-      });
-
-      if (!submission.success) {
-        setTransactionStatus({
-          type: "error",
-          message: submission.error ?? "Transaction failed",
-        });
-        return;
-      }
-
-      const explorerUrl = buildExplorerUrl(submission.signature);
+      const signature = await sendSignedTransaction(signedTransaction);
+      const explorerUrl = buildExplorerUrl(signature);
 
       setTransactionStatus({
         type: "success",

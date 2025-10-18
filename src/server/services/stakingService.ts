@@ -48,10 +48,6 @@ export type PreparedTransactionResult =
   | { success: true; transaction: string; stakeAccount?: string }
   | { success: false; error: string };
 
-export type SubmitTransactionResult =
-  | { success: true; signature: string }
-  | { success: false; error: string };
-
 class ServerStakingService {
   private connection: Connection;
 
@@ -476,28 +472,6 @@ class ServerStakingService {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to prepare merge transaction",
-      };
-    }
-  }
-
-  async submitSignedTransaction(serializedTransaction: string): Promise<SubmitTransactionResult> {
-    try {
-      const buffer = Buffer.from(serializedTransaction, "base64");
-      const signature = await this.connection.sendRawTransaction(buffer);
-      const latestBlockHash = await this.connection.getLatestBlockhash();
-
-      await this.connection.confirmTransaction({
-        signature,
-        blockhash: latestBlockHash.blockhash,
-        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-      }, "confirmed");
-
-      return { success: true, signature };
-    } catch (error) {
-      console.error("Error submitting signed transaction:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to submit transaction",
       };
     }
   }
