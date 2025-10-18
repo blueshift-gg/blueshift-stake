@@ -17,7 +17,7 @@ import {
 import { StakeTabContent } from "./components/StakeTabContent";
 import { MergeTabContent } from "./components/MergeTabContent";
 import { UnstakeTabContent } from "./components/UnstakeTabContent";
-import type { DeactivationStatus, TransactionStatus, StakeTab } from "./types";
+import type { TransactionStatus, StakeTab } from "./types";
 
 const EXPLORER_BASE_URL = (process.env.NEXT_PUBLIC_SOLANA_EXPLORER_BASE_URL ?? "https://explorer.solana.com/tx").replace(/\/$/, "");
 const EXPLORER_CLUSTER = process.env.NEXT_PUBLIC_SOLANA_EXPLORER_CLUSTER;
@@ -73,7 +73,7 @@ export default function StakeWidget() {
   const solPrice = solPriceData?.price ?? 0;
   const minStakeAmount = getMinimumStakeAmount();
 
-  const { data: stakeAccounts } = trpc.stake.poolsbyAuthority.useQuery(
+  const { data: stakeAccounts } = trpc.stake.poolsByAuthority.useQuery(
     {
       stakingAuthority: publicKey?.toBase58() || "",
     },
@@ -107,7 +107,7 @@ export default function StakeWidget() {
 
     const tasks: Array<Promise<unknown>> = [
       utils.stake.balance.invalidate({ address: walletAddress }),
-      utils.stake.poolsbyAuthority.invalidate({ stakingAuthority: walletAddress }),
+      utils.stake.poolsByAuthority.invalidate({ stakingAuthority: walletAddress }),
     ];
 
     if (options?.includeSelectedPool && unstakeAccount) {
@@ -158,13 +158,15 @@ export default function StakeWidget() {
       const maxStakeAmount = Math.max(0, balance - 0.01);
       setAmount(formatAmountInput(maxStakeAmount, 4));
     } else if (selectedTab === "unstake") {
-      if (withdrawableAmount > 0) {
+      if (activationState === "activating") {
+        setAmount(formatAmountInput(delegatedStake, 9));
+      } else if (activationState === "active") {
+        setAmount(formatAmountInput(activeStakeAmount, 9));
+      } else if (activationState === "inactive") {
         setAmount(formatAmountInput(withdrawableAmount, 9));
       } else {
-        setAmount(formatAmountInput(delegatedStake, 9));
+        setAmount("");
       }
-    } else {
-      setAmount("");
     }
   };
 
@@ -240,10 +242,7 @@ export default function StakeWidget() {
 
       setTransactionStatus({
         type: "success",
-        message: `Successfully staked ${formatNumber(stakeAmount, {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 9,
-        })} SOL!`,
+        message: "Stake transaction submitted.",
         link: {
           href: explorerUrl,
           label: "View on Solana Explorer",
@@ -588,12 +587,6 @@ export default function StakeWidget() {
     }
   }, [mergeSource, mergeDestination]);
 
-  const deactivationStatus: DeactivationStatus = {
-    active: !!stakeAccount && (activationState === "active" || activationState === "activating"),
-    deactivating: !!stakeAccount && activationState === "deactivating",
-    withdrawing: !!stakeAccount && withdrawableAmount > 0,
-  };
-
   useEffect(() => {
     if (!unstakeAccount) {
       return;
@@ -674,7 +667,7 @@ export default function StakeWidget() {
             stakeAccounts={stakeAccounts}
             selectedStakeAccount={unstakeAccount}
             stakeAccountSummary={stakeAccountSummary}
-            deactivationStatus={deactivationStatus}
+            activationStatus={activationState}
             amount={amount}
             numericAmount={numericAmount}
             solPrice={solPrice}

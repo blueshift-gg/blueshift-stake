@@ -31,7 +31,7 @@ export function TransactionStatusNotice({ status }: TransactionStatusNoticeProps
           <a
             href={status.link.href}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="underline underline-offset-4"
           >
             {status.link.label ?? "View transaction"}

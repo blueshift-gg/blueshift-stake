@@ -7,10 +7,4 @@ export type TransactionStatus = {
   };
 };
 
-export type DeactivationStatus = {
-  active: boolean;
-  deactivating: boolean;
-  withdrawing: boolean;
-};
-
 export type StakeTab = "stake" | "unstake" | "merge";

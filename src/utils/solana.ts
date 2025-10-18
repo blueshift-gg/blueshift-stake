@@ -22,7 +22,7 @@ export const solToLamports = (sol: number): number => {
 // Validate SOL amount input
 export const isValidSolAmount = (amount: string): boolean => {
   const num = parseFloat(amount);
-  return Number.isFinite(num) && num > 0;
+  return Number.isFinite(num) && num > 0 && num <= Number.MAX_SAFE_INTEGER;
 };
 
 // Get minimum stake amount (0.001 SOL for rent exemption + stake minimum)

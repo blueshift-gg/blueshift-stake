@@ -8,7 +8,7 @@ import { formatCurrency, formatSol } from "@/utils/format";
 import Image from "next/image";
 import { anticipate, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import type { DeactivationStatus, TransactionStatus } from "../types";
+import type { TransactionStatus } from "../types";
 import { TransactionStatusNotice } from "./TransactionStatusNotice";
 
 interface StakeAccountSummary {
@@ -26,7 +26,7 @@ interface UnstakeTabContentProps {
   stakeAccounts?: Array<{ address: string }>;
   selectedStakeAccount?: string;
   stakeAccountSummary?: StakeAccountSummary;
-  deactivationStatus: DeactivationStatus;
+  activationStatus: string;
   amount: string;
   numericAmount: number;
   solPrice: number;
@@ -47,7 +47,7 @@ export function UnstakeTabContent({
   stakeAccounts,
   selectedStakeAccount,
   stakeAccountSummary,
-  deactivationStatus,
+  activationStatus,
   amount,
   numericAmount,
   solPrice,
@@ -155,41 +155,29 @@ export function UnstakeTabContent({
         <div className="flex flex-col gap-y-1">
           <div className="w-full flex items-center justify-between px-1.5">
             <span className="font-medium">{t("ui.amount")}</span>
-            {deactivationStatus.withdrawing ? null : (
               <div className="flex items-center gap-x-1.5 text-tertiary">
                 <Icon name="WalletSmall" />
                 <span className="text-sm font-mono">
                   {`${formatSol(selectedStakeAccount ? delegatedStake : 0)} SOL delegated`}
                 </span>
               </div>
-            )}
           </div>
           <div className="gap-x-4 relative bg-background rounded-xl border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
             <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] rounded-md text-xl">
               <Image src="/icons/sol.svg" alt="Solana Icon" width={24} height={24} />
               <span className="leading-[100%]">SOL</span>
             </div>
-            {deactivationStatus.withdrawing ? (
-              <input
-                className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
-                placeholder={formatSol(withdrawableNow)}
-                disabled={!connected || isBalanceLoading || !selectedStakeAccount || deactivationStatus.deactivating}
-                value={formatSol(withdrawableNow)}
-                readOnly
-              />
-            ) : (
               <input
                 className="disabled:opacity-40 focus:outline-none bg-transparent w-full text-2xl placeholder:text-mute font-mono leading-[100%] text-right"
                 placeholder="0.00"
-                disabled={!connected || isBalanceLoading || !selectedStakeAccount || deactivationStatus.deactivating}
+                disabled={!connected || isBalanceLoading || !selectedStakeAccount || activationStatus === "deactivating" || activationStatus === "inactive"}
                 value={amount}
                 onChange={(event) => onAmountChange(event.target.value)}
               />
-            )}
             <Button
               size="xs"
               label={t("ui.max")}
-              disabled={!connected || isBalanceLoading || !selectedStakeAccount || deactivationStatus.deactivating}
+              disabled={!connected || isBalanceLoading || !selectedStakeAccount || activationStatus === "deactivating" || activationStatus === "inactive"}
               onClick={onMaxClick}
             />
           </div>

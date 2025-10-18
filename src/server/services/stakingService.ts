@@ -12,13 +12,11 @@ import {
   getMetaDecoder,
   getStakeDecoder,
   type Meta,
-  type Stake as StakeData,
 } from "@solana-program/stake";
 import { lamportsToSol, solToLamports, VALIDATOR_VOTE_ACCOUNT, connection } from "@/utils/solana";
 
 const STAKE_DECODER = getStakeDecoder();
 const META_DECODER = getMetaDecoder();
-const STAKE_PROGRAM_ID = new PublicKey("Stake11111111111111111111111111111111111111");
 const WRAPPED_SOL_MINT_ADDRESS = "So11111111111111111111111111111111111111112";
 const WRAPPED_SOL_PRICE_ENDPOINT = `https://lite-api.jup.ag/price/v3?ids=${WRAPPED_SOL_MINT_ADDRESS}`;
 
@@ -61,8 +59,8 @@ class ServerStakingService {
     this.connection = rpcConnection;
   }
 
-  async getMinimumBalanceForRentExemption(): Promise<number> {
-    return this.connection.getMinimumBalanceForRentExemption(StakeProgram.space);
+  async getMinimumBalanceForRentExemption(): Promise<bigint> {
+    return BigInt(await this.connection.getMinimumBalanceForRentExemption(StakeProgram.space));
   }
 
   async getWalletBalance(address: string): Promise<number> {
@@ -70,31 +68,8 @@ class ServerStakingService {
     return lamportsToSol(balance);
   }
 
-  async getValidatorStakeTotals(): Promise<Array<{ amount: number }>> {
-    const voteAccounts = await this.connection.getVoteAccounts();
-    const voteAccountPrefix = VALIDATOR_VOTE_ACCOUNT.toBase58();
-
-    const currentMatch = voteAccounts.current.find((account) =>
-      account.votePubkey.toString().startsWith(voteAccountPrefix)
-    );
-
-    if (currentMatch) {
-      return [{ amount: currentMatch.activatedStake }];
-    }
-
-    const delinquentMatch = voteAccounts.delinquent.find((account) =>
-      account.votePubkey.toString().startsWith(voteAccountPrefix)
-    );
-
-    if (delinquentMatch) {
-      return [{ amount: delinquentMatch.activatedStake }];
-    }
-
-    return [];
-  }
-
   async getStakePools(): Promise<StakePoolInfo[]> {
-    const stakeAccounts = await this.connection.getProgramAccounts(STAKE_PROGRAM_ID, {
+    const stakeAccounts = await this.connection.getProgramAccounts(StakeProgram.programId, {
       commitment: "confirmed",
       filters: [
         {
@@ -133,7 +108,7 @@ class ServerStakingService {
       return [];
     }
 
-    const stakeAccounts = await this.connection.getProgramAccounts(STAKE_PROGRAM_ID, {
+    const stakeAccounts = await this.connection.getProgramAccounts(StakeProgram.programId, {
       commitment: "confirmed",
       filters: [
         {
@@ -191,9 +166,8 @@ class ServerStakingService {
       throw new Error("Stake account not found");
     }
 
-    const stakeBuffer = Buffer.from(stakeAccount.data);
-    const stakeData = STAKE_DECODER.decode(stakeBuffer, 124);
-    const metaData = META_DECODER.decode(stakeBuffer, 4);
+    const stakeData = STAKE_DECODER.decode(stakeAccount.data, 124);
+    const metaData = META_DECODER.decode(stakeAccount.data, 4);
 
     const activationStatus = activation.status;
     const activeLamports = this.toLamportsNumber(activation.active);
@@ -201,8 +175,10 @@ class ServerStakingService {
     const delegatedLamports = this.toLamportsNumber(stakeData.delegation.stake);
 
     const isWithdrawable = activationStatus === "inactive" || activationStatus === "deactivating";
-    const withdrawableLamports = isWithdrawable ? inactiveLamports : 0;
 
+    const withdrawableLamports = isWithdrawable
+      ? inactiveLamports + (activeLamports === 0 ? this.toLamportsNumber(metaData.rentExemptReserve) : 0)
+      : 0;
     const deactivationEpoch = stakeData.delegation?.deactivationEpoch;
 
     return {
@@ -213,7 +189,7 @@ class ServerStakingService {
       activeStake: lamportsToSol(activeLamports),
       inactiveStake: lamportsToSol(inactiveLamports),
       activationState: activationStatus,
-      rentExemptReserve: lamportsToSol(rentExemptLamports),
+      rentExemptReserve: lamportsToSol(this.toLamportsNumber(rentExemptLamports)),
       stakingAuthority: String(metaData.authorized.staker),
       withdrawAuthority: String(metaData.authorized.withdrawer),
       status: activation.status,
@@ -259,7 +235,7 @@ class ServerStakingService {
       const userPublicKey = new PublicKey(walletAddress);
       const amountLamports = solToLamports(amount);
       const rentExemption = await this.getMinimumBalanceForRentExemption();
-      const minimumAmount = solToLamports(0.001) + rentExemption;
+      const minimumAmount = solToLamports(0.001) + this.toLamportsNumber(rentExemption);
 
       if (amountLamports < minimumAmount) {
         return {
@@ -329,7 +305,7 @@ class ServerStakingService {
         throw new Error("Stake account not found");
       }
 
-      const stakeData = this.decodeStakeData(stakeAccountInfo.data);
+      const stakeData = STAKE_DECODER.decode(stakeAccountInfo.data, 124);
       const stakeMeta = META_DECODER.decode(stakeAccountInfo.data, 4);
       const totalStakedLamports = this.toLamportsNumber(stakeData?.delegation?.stake ?? 0);
       const rentExemptReserveLamports = this.toLamportsNumber(stakeMeta?.rentExemptReserve ?? 0);
@@ -414,42 +390,20 @@ class ServerStakingService {
         return { success: false, error: "Stake account not found" };
       }
 
-      const stakeDecoded = STAKE_DECODER.decode(Buffer.from(stakeAccountInfo.data), 124);
-      const deactivationEpoch = stakeDecoded.delegation?.deactivationEpoch;
-      const currentEpoch = (await this.connection.getEpochInfo()).epoch;
-
-      if (deactivationEpoch !== undefined && currentEpoch <= Number(deactivationEpoch)) {
-        return { success: false, error: "Stake account is still in cooldown. Wait for the next epoch." };
-      }
-
-      const stakeLamports = await this.connection.getBalance(stakeAccountPubkey);
-      if (stakeLamports === 0) {
-        return { success: false, error: "Nothing to withdraw from this stake account" };
-      }
-
       const activation = await getStakeActivation(this.connection, stakeAccountPubkey);
-      const rentExemption = await this.getMinimumBalanceForRentExemption();
 
-      const activationStatus = activation.status;
-      const inactiveLamports = this.toLamportsNumber(activation.inactive);
-
-      let withdrawLamports: number;
-
-      if (activationStatus === "inactive") {
-        withdrawLamports = stakeLamports;
-      } else {
-        const withdrawableWithoutRent = Math.max(stakeLamports - rentExemption, 0);
-        withdrawLamports = Math.min(Math.max(inactiveLamports, 0), withdrawableWithoutRent);
-      }
-
-      withdrawLamports = Math.max(0, Math.floor(withdrawLamports));
-
-      if (withdrawLamports === 0) {
+      if (!["inactive", "deactivating"].includes(activation.status)) {
         return {
           success: false,
-          error: "Stake account has no inactive balance available to withdraw yet.",
+          error: "Stake account is still active or cooling down. Cannot withdraw yet.",
         };
       }
+
+      const metaDecoded = META_DECODER.decode(stakeAccountInfo.data, 4);
+
+      const withdrawableLamports = activation.active === 0n
+        ? this.toLamportsNumber(activation.inactive + metaDecoded.rentExemptReserve)
+        : this.toLamportsNumber(activation.inactive);
 
       const transaction = new Transaction();
       transaction.add(
@@ -457,7 +411,7 @@ class ServerStakingService {
           stakePubkey: stakeAccountPubkey,
           authorizedPubkey: userPublicKey,
           toPubkey: userPublicKey,
-          lamports: withdrawLamports,
+          lamports: withdrawableLamports,
         })
       );
 
@@ -548,21 +502,16 @@ class ServerStakingService {
     }
   }
 
-  private toLamportsNumber(value: unknown): number {
+  private toLamportsNumber(value: bigint | number): number {
     if (typeof value === "bigint") {
-      return Number(value);
+      const num = parseInt(value.toString(), 10);
+      if (!Number.isSafeInteger(num)) {
+          throw new Error(`BigInt is outside the safe Number range: ${value.toString(10)}`);
+      }
+      return num;
     }
 
-    if (typeof value === "number") {
-      return value;
-    }
-
-    if (typeof value === "string") {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    return 0;
+    return value;
   }
 
   /**
@@ -590,8 +539,8 @@ class ServerStakingService {
     let destinationMeta: Meta;
 
     try {
-      sourceMeta = META_DECODER.decode(Buffer.from(sourceInfo.data), 4);
-      destinationMeta = META_DECODER.decode(Buffer.from(destinationInfo.data), 4);
+      sourceMeta = META_DECODER.decode(sourceInfo.data, 4);
+      destinationMeta = META_DECODER.decode(destinationInfo.data, 4);
     } catch (error) {
       console.error("Failed to decode stake account metadata:", error);
       return {
@@ -626,8 +575,8 @@ class ServerStakingService {
       };
     }
 
-    const sourceStakeData = this.decodeStakeData(sourceInfo.data);
-    const destinationStakeData = this.decodeStakeData(destinationInfo.data);
+    const sourceStakeData = STAKE_DECODER.decode(sourceInfo.data, 124);
+    const destinationStakeData = STAKE_DECODER.decode(destinationInfo.data, 124);
 
     const sourceDelegation = sourceStakeData?.delegation;
     const destinationDelegation = destinationStakeData?.delegation;
@@ -787,14 +736,6 @@ class ServerStakingService {
       success: false,
       error: "Selected stake accounts cannot be merged in their current states.",
     };
-  }
-
-  private decodeStakeData(data: Uint8Array | Buffer): StakeData | null {
-    try {
-      return STAKE_DECODER.decode(Buffer.from(data), 124);
-    } catch {
-      return null;
-    }
   }
 
   private isTransientActivation(activation: Awaited<ReturnType<typeof getStakeActivation>> | undefined): boolean {

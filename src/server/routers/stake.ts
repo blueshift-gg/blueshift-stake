@@ -10,12 +10,6 @@ export const stakeRouter = createTRPCRouter({
       const balance = await serverStakingService.getWalletBalance(input.address);
       return { balance };
     }),
-  total: publicProcedure
-    .input(z.void())
-    .output(z.array(z.object({
-      amount: z.number(),
-    })))
-    .query(async () => serverStakingService.getValidatorStakeTotals()),
   pools: publicProcedure
     .input(z.void())
     .output(z.array(z.object({
@@ -24,7 +18,7 @@ export const stakeRouter = createTRPCRouter({
       stakingAuthority: z.string(),
     })))
     .query(async () => serverStakingService.getStakePools()),
-  poolsbyAuthority: publicProcedure
+  poolsByAuthority: publicProcedure
     .input(z.object({
       stakingAuthority: z.string()
     }))

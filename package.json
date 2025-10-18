@@ -14,7 +14,7 @@
   "dependencies": {
     "@anza-xyz/solana-rpc-get-stake-activation": "^1.0.1",
     "@opennextjs/cloudflare": "^1.11.0",
-    "@solana-program/stake": "^0.2.1",
+    "@solana-program/stake": "^0.4.0",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.28",
     "@solana/wallet-adapter-react": "^0.15.39",
@@ -32,8 +32,8 @@
     "motion-plus": "^1.4.1",
     "next": "15.3.5",
     "next-intl": "^4.3.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "superjson": "^2.2.2",
     "usehooks-ts": "^3.1.1",
     "zod": "^4.0.17"
