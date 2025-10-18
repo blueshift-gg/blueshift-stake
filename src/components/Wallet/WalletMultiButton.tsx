@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 import Button from "../Button/Button";
 import DecryptedText from "../HeadingReveal/DecryptText";
 import { motion } from "motion/react";
@@ -6,7 +6,6 @@ import { anticipate } from "motion";
 import Icon from "../Icon/Icon";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { useStakingStore } from "@/stores/stakingStore";
 
 interface WalletButtonProps {
   disabled?: boolean;
@@ -20,12 +19,6 @@ export default function WalletMultiButton({
   const [isHoveringLocal, setIsHoveringLocal] = useState<boolean>(false);
   const { publicKey, disconnect, connected, connecting } = useWallet();
   const { setVisible: setModalVisible } = useWalletModal();
-  const { setWallet } = useStakingStore();
-
-  // Sync wallet state with staking store
-  useEffect(() => {
-    setWallet(connected ? publicKey : null);
-  }, [connected, publicKey, setWallet]);
 
   const showDisconnectOverlay = isHoveringLocal && connected;
 
