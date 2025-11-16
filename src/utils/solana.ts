@@ -1,4 +1,5 @@
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction } from '@solana/web3.js';
+import { useCallback } from 'react';
 
 // Constants
 export const SOLANA_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT!;
@@ -29,3 +30,30 @@ export const isValidSolAmount = (amount: string): boolean => {
 export const getMinimumStakeAmount = (): number => {
   return 0.001; // SOL
 };
+
+export const useSendSignedTransaction = () : ((signedTransaction: Transaction) => Promise<string>) => {
+  const sendSignedTransaction = useCallback(async (signedTransaction: Transaction) => {
+    const serializedTransaction = signedTransaction.serialize();
+    const signature = await connection.sendRawTransaction(serializedTransaction, {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    });
+    const blockhashInfo = signedTransaction.recentBlockhash && signedTransaction.lastValidBlockHeight
+      ? {
+          blockhash: signedTransaction.recentBlockhash,
+          lastValidBlockHeight: signedTransaction.lastValidBlockHeight,
+        }
+      : await connection.getLatestBlockhash();
+    await connection.confirmTransaction(
+      {
+        signature,
+        blockhash: blockhashInfo.blockhash,
+        lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
+      },
+      "confirmed"
+    );
+    return signature;
+  }, [connection]);
+
+  return sendSignedTransaction;
+}
