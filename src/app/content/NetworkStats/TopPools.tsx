@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { rgbToRgba, shortenString } from "@/utils/utils";
@@ -207,12 +206,10 @@ const PoolCarousel = () => {
                     strokeWidth={1}
                   />
                   {pool.icon ? (
-                    <Image
+                    <img
                       src={pool.icon}
                       alt={pool.name ?? "Pool icon"}
-                      width={32}
-                      height={32}
-                      className="object-contain"
+                      className="object-contain w-8 h-8"
                     />
                   ) : null}
                 </div>

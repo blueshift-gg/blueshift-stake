@@ -121,13 +121,9 @@ export default function NetworkStats() {
       return null;
     }
 
-    const upcomingFutureSlot = schedule.find(
-      (slot) => slot > effectiveSlot
-    );
+    const upcomingFutureSlot = schedule.find((slot) => slot > effectiveSlot);
 
-    return (
-      upcomingFutureSlot ?? schedule[schedule.length - 1] ?? null
-    );
+    return upcomingFutureSlot ?? schedule[schedule.length - 1] ?? null;
   }, [upcomingLeaderSlots, effectiveSlot]);
 
   const slotsUntilNextLeader = useMemo(() => {
@@ -179,11 +175,7 @@ export default function NetworkStats() {
     }, REFRESH_TRIGGER_DELAY_MS);
 
     return () => clearTimeout(timeout);
-  }, [
-    nextScheduledSlot,
-    hasReachedScheduledSlot,
-    refetchValidatorStats,
-  ]);
+  }, [nextScheduledSlot, hasReachedScheduledSlot, refetchValidatorStats]);
 
   const isInitialValidatorLoad = validatorStatus === "pending";
   const isValidatorError = validatorStatus === "error";
@@ -191,7 +183,8 @@ export default function NetworkStats() {
     validatorFetchStatus === "fetching" && !isInitialValidatorLoad;
   const shouldShowNextLeaderLoading =
     !isValidatorError &&
-    (isInitialValidatorLoad || (hasReachedScheduledSlot && isValidatorRefreshing));
+    (isInitialValidatorLoad ||
+      (hasReachedScheduledSlot && isValidatorRefreshing));
 
   return (
     <motion.div className="w-full border-y border-border">
@@ -201,19 +194,16 @@ export default function NetworkStats() {
           <StatCard title={t("ui.validator")} useMonospace={false}>
             <div className="absolute w-full xl:w-[calc(100%+24px)] h-[calc(100%+1px)] left-0 -top-[1px] overflow-hidden pointer-events-none">
               <div className="absolute w-[1350px] h-[500px] mix-blend-color-dodge top-1/3 -translate-y-3/5 left-1/2 -translate-x-1/2">
-                <Image
+                <img
                   src="/graphics/validator-eclipse.webp"
                   alt="Validator eclipse effect"
-                  width={1350}
-                  height={500}
                   className="max-w-none"
                 />
               </div>
               <div className="w-full h-full mix-blend-plus-lighter [mask-image:linear-gradient(270deg,rgba(217,217,217,0)_-0.18%,rgba(115,115,115,0.2)_99.82%)]">
-                <Image
+                <img
                   src="/graphics/validator-bg.webp"
                   alt="Validator BG"
-                  fill
                   className="object-cover"
                 />
               </div>
@@ -228,9 +218,7 @@ export default function NetworkStats() {
                 <Image
                   src="/icons/blueshift.svg"
                   alt="Blueshift Icon"
-                  width={24}
-                  height={24}
-                  className="relative z-20"
+                  className="relative z-20 w-6 h-6"
                 />
                 <div>{shortenString(validatorVoteAccount, 8)}</div>
                 <div className="group-hover/link:text-primary focus:outline-none h-4 w-4 text-tertiary/50 hover:text-primary transition">
@@ -239,12 +227,10 @@ export default function NetworkStats() {
               </a>
             ) : (
               <div className="flex items-center gap-x-2.5">
-                <Image
+                <img
                   src="/icons/blueshift.svg"
                   alt="Blueshift Icon"
-                  width={24}
-                  height={24}
-                  className="relative z-20"
+                  className="relative z-20 w-6 h-6"
                 />
                 <div>{shortenString(validatorVoteAccount, 8)}</div>
               </div>

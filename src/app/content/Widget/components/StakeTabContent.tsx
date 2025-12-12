@@ -6,7 +6,6 @@ import { Button } from "@blueshift-gg/ui-components";
 import Icon from "@/components/Icon/Icon";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import { formatCurrency, formatSol } from "@/utils/format";
-import Image from "next/image";
 import { anticipate, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type { TransactionStatus } from "../types";
@@ -70,12 +69,7 @@ export function StakeTabContent({
           </div>
           <div className="gap-x-4 relative bg-background border border-border pr-3 py-1.5 pl-1.5 flex items-center justify-between">
             <div className="flex-shrink-0 flex font-mono items-center text-[#9945ff] gap-x-1.5 px-2 py-1.5 bg-background-card/50 border border-[#AD6AFF]/20 shadow-[inset_0px_0px_9px_rgba(154,70,255,0.2)] text-xl">
-              <Image
-                src="/icons/sol.svg"
-                alt="Solana Icon"
-                width={24}
-                height={24}
-              />
+              <img src="/icons/sol.svg" alt="Solana Icon" className="w-6 h-6" />
               <span className="leading-[100%]">SOL</span>
             </div>
             <input
