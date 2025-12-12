@@ -30,8 +30,7 @@ type PoolType = {
   name?: string;
   icon?: string | null;
   color: string;
-}
-
+};
 
 const PoolCarousel = () => {
   const [hoveredPool, setHoveredPool] = useState<string | null>(null);
@@ -87,39 +86,52 @@ const PoolCarousel = () => {
       icon: "/icons/doublezero.svg",
       amountStaked: 0,
       color: "rgb(0, 255, 163)",
-      stakingAuthority: "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi"
+      stakingAuthority: "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi",
     },
     {
       name: "Others",
       icon: null,
       amountStaked: 0,
       color: "rgb(255, 255, 255)",
-      stakingAuthority: null
-    }
+      stakingAuthority: null,
+    },
   ];
 
-  const allPoolsStakingAuthorities = allPools?.map((pool) => pool.stakingAuthority) ?? []
-  const knownPoolStakingAuthorities = knownPools.map((pool) => pool.stakingAuthority)
+  const allPoolsStakingAuthorities =
+    allPools?.map((pool) => pool.stakingAuthority) ?? [];
+  const knownPoolStakingAuthorities = knownPools.map(
+    (pool) => pool.stakingAuthority
+  );
 
   let updatedPools: PoolType[];
 
   updatedPools = knownPools.map((pool) => {
-    if (pool.stakingAuthority && allPoolsStakingAuthorities.includes(pool.stakingAuthority)) {
-      return  {
+    if (
+      pool.stakingAuthority &&
+      allPoolsStakingAuthorities.includes(pool.stakingAuthority)
+    ) {
+      return {
         ...pool,
-        amountStaked: pool.amountStaked + (allPools?.filter((newPool) => newPool.stakingAuthority === pool.stakingAuthority)[0].amountStaked ?? 0),
-      }
+        amountStaked:
+          pool.amountStaked +
+          (allPools?.filter(
+            (newPool) => newPool.stakingAuthority === pool.stakingAuthority
+          )[0].amountStaked ?? 0),
+      };
     } else {
       return {
-        ...pool
-      }
+        ...pool,
+      };
     }
-  })
+  });
 
   const othersPool = updatedPools.find((pool) => pool.name === "Others");
 
   allPools?.forEach((pool) => {
-    if (!knownPoolStakingAuthorities.includes(pool.stakingAuthority) && othersPool) {
+    if (
+      !knownPoolStakingAuthorities.includes(pool.stakingAuthority) &&
+      othersPool
+    ) {
       othersPool.amountStaked += pool.amountStaked;
     }
   });
@@ -131,7 +143,7 @@ const PoolCarousel = () => {
     ...updatedPools.filter((pool) => pool.name === "Others"),
   ];
 
-  const duplicatedPools = [...updatedPools, ...updatedPools]
+  const duplicatedPools = [...updatedPools, ...updatedPools];
 
   return (
     <div className="col-span-1 xl:col-span-6 [mask-image:linear-gradient(to_right,transparent_0%,black_10%,black_90%,transparent)]">
@@ -140,7 +152,9 @@ const PoolCarousel = () => {
           if (pool.amountStaked <= 10) return null;
 
           const hasStakingAuthority = Boolean(pool.stakingAuthority);
-          const pointerClass = hasStakingAuthority ? "cursor-pointer" : "cursor-default";
+          const pointerClass = hasStakingAuthority
+            ? "cursor-pointer"
+            : "cursor-default";
           const iconOpacityClass = pool.icon ? "opacity-100" : "opacity-0";
           const cardHref = hasStakingAuthority
             ? `https://solscan.io/account/${pool.stakingAuthority}`
@@ -148,7 +162,9 @@ const PoolCarousel = () => {
           const handleMouseEnter = hasStakingAuthority
             ? () => setHoveredPool(pool.stakingAuthority)
             : undefined;
-          const handleMouseLeave = hasStakingAuthority ? () => setHoveredPool(null) : undefined;
+          const handleMouseLeave = hasStakingAuthority
+            ? () => setHoveredPool(null)
+            : undefined;
 
           return (
             <motion.a
@@ -190,7 +206,7 @@ const PoolCarousel = () => {
                     size={4}
                     strokeWidth={1}
                   />
-                  { pool.icon ? (
+                  {pool.icon ? (
                     <Image
                       src={pool.icon}
                       alt={pool.name ?? "Pool icon"}
@@ -198,12 +214,12 @@ const PoolCarousel = () => {
                       height={32}
                       className="object-contain"
                     />
-                  ) : null }
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-y-1">
                   <span className="font-medium text-primary">{pool.name}</span>
                   <span className="font-mono text-sm text-tertiary flex items-center gap-x-1.5 h-6">
-                    { pool.stakingAuthority ? (
+                    {pool.stakingAuthority ? (
                       <>
                         <DecryptedText
                           isHovering={hoveredPool === pool.stakingAuthority}
@@ -211,14 +227,15 @@ const PoolCarousel = () => {
                         />
                         <Icon name="ExternalLink" />
                       </>
-                    ) : null }
+                    ) : null}
                   </span>
                 </div>
               </div>
               <span className="font-mono text-primary text-lg self-center">
-              {formatNumber(pool.amountStaked, { maximumFractionDigits: 2 })} SOL
-            </span>
-          </motion.a>
+                {formatNumber(pool.amountStaked, { maximumFractionDigits: 2 })}{" "}
+                SOL
+              </span>
+            </motion.a>
           );
         })}
       </div>
