@@ -10,7 +10,7 @@ import { routing } from "@/i18n/routing";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 
 import Logo from "@/components/Logo/Logo";
-import Button from "@/components/Button/Button";
+import { Button } from "@blueshift-gg/ui-components";
 import LogoGlyph from "@/components/Logo/LogoGlyph";
 
 export default function HeaderContent() {
@@ -47,8 +47,8 @@ export default function HeaderContent() {
           {/* Language Switcher */}
           <div className="relative" ref={languageDropdownRef}>
             <Button
-              variant="tertiary"
-              icon="Globe"
+              variant="outline"
+              icon={{ name: "Globe" }}
               className="!w-[42px] flex"
               onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
             />
@@ -59,14 +59,14 @@ export default function HeaderContent() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
                   transition={{ duration: 0.4, ease: anticipate }}
-                  className="border border-border z-50 rounded-xl flex w-max flex-col gap-y-1 absolute top-[calc(100%+6px)] right-0 p-1 bg-background-card"
+                  className="border border-border z-50 flex w-max flex-col gap-y-1 absolute top-[calc(100%+6px)] right-0 p-1 bg-background-card"
                 >
                   {locales.map((locale) => (
                     <button
                       key={locale}
                       onClick={() => handleLanguageChange(locale)}
                       className={classNames(
-                        "flex items-center relative gap-x-4 py-3 px-4 rounded-lg transition hover:bg-background-card-foreground",
+                        "flex items-center relative gap-x-4 py-3 px-4 transition hover:bg-background-card-foreground",
                         locale === currentLocale &&
                           "bg-background-card-foreground"
                       )}

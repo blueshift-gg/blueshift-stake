@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
@@ -8,7 +8,9 @@ interface TransactionStatusNoticeProps {
   status: TransactionStatus;
 }
 
-export function TransactionStatusNotice({ status }: TransactionStatusNoticeProps) {
+export function TransactionStatusNotice({
+  status,
+}: TransactionStatusNoticeProps) {
   if (!status.type) {
     return null;
   }
@@ -19,7 +21,7 @@ export function TransactionStatusNotice({ status }: TransactionStatusNoticeProps
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: anticipate }}
       className={classNames(
-        "w-full p-3 rounded-lg text-sm font-mono text-center",
+        "w-full p-3 text-sm font-mono text-center",
         status.type === "success"
           ? "bg-green-500/20 text-green-400 border border-green-500/30"
           : "bg-red-500/20 text-red-400 border border-red-500/30"

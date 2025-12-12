@@ -88,9 +88,7 @@ export default async function RootLayout({
           <WalletProvider>
             <TRPCProvider>
               <Header />
-              <main className="flex-1">
-                {children}
-              </main>
+              <main className="flex-1">{children}</main>
               <Footer />
             </TRPCProvider>
           </WalletProvider>

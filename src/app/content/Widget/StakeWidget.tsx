@@ -19,16 +19,21 @@ import { MergeTabContent } from "./components/MergeTabContent";
 import { UnstakeTabContent } from "./components/UnstakeTabContent";
 import type { TransactionStatus, StakeTab } from "./types";
 
-const EXPLORER_BASE_URL = (process.env.NEXT_PUBLIC_SOLANA_EXPLORER_BASE_URL ?? "https://explorer.solana.com/tx").replace(/\/$/, "");
+const EXPLORER_BASE_URL = (
+  process.env.NEXT_PUBLIC_SOLANA_EXPLORER_BASE_URL ??
+  "https://explorer.solana.com/tx"
+).replace(/\/$/, "");
 const EXPLORER_CLUSTER = process.env.NEXT_PUBLIC_SOLANA_EXPLORER_CLUSTER;
 
 export default function StakeWidget() {
   const [selectedTab, setSelectedTab] = useState<StakeTab>("stake");
-  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>({
-    type: null,
-    message: "",
-    link: undefined,
-  });
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>(
+    {
+      type: null,
+      message: "",
+      link: undefined,
+    }
+  );
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const clearTransactionStatus = useCallback(() => {
@@ -38,10 +43,7 @@ export default function StakeWidget() {
   const t = useTranslations();
   const { publicKey, signTransaction, connected } = useWallet();
   const { connection } = useConnection();
-  const walletAddress = useMemo(
-    () => publicKey?.toBase58() ?? "",
-    [publicKey]
-  );
+  const walletAddress = useMemo(() => publicKey?.toBase58() ?? "", [publicKey]);
 
   const {
     data: balanceData,
@@ -62,7 +64,9 @@ export default function StakeWidget() {
   const utils = trpc.useUtils();
 
   const buildExplorerUrl = useCallback((signature: string) => {
-    const clusterSuffix = EXPLORER_CLUSTER ? `?cluster=${EXPLORER_CLUSTER}` : "";
+    const clusterSuffix = EXPLORER_CLUSTER
+      ? `?cluster=${EXPLORER_CLUSTER}`
+      : "";
     return `${EXPLORER_BASE_URL}/${signature}${clusterSuffix}`;
   }, []);
 
@@ -85,14 +89,21 @@ export default function StakeWidget() {
   );
 
   const [mergeSource, setMergeSource] = useState<string | undefined>(undefined);
-  const [mergeDestination, setMergeDestination] = useState<string | undefined>(undefined);
-  const [unstakeAccount, setUnstakeAccount] = useState<string | undefined>(undefined);
+  const [mergeDestination, setMergeDestination] = useState<string | undefined>(
+    undefined
+  );
+  const [unstakeAccount, setUnstakeAccount] = useState<string | undefined>(
+    undefined
+  );
 
-  const { data: stakeAccount } = trpc.stake.pool.useQuery({
-    address: unstakeAccount || ""
-  }, {
-    enabled: !!unstakeAccount
-  });
+  const { data: stakeAccount } = trpc.stake.pool.useQuery(
+    {
+      address: unstakeAccount || "",
+    },
+    {
+      enabled: !!unstakeAccount,
+    }
+  );
 
   const delegatedStake = stakeAccount?.delegatedStake ?? 0;
   const withdrawableAmount = stakeAccount?.withdrawableAmount ?? 0;
@@ -101,53 +112,70 @@ export default function StakeWidget() {
   const activationState = stakeAccount?.status ?? "unknown";
   const rentExemptReserve = stakeAccount?.rentExemptReserve ?? 0;
 
-  const invalidateStakeData = useCallback(async (options?: { includeSelectedPool?: boolean }) => {
-    if (!walletAddress) {
-      return;
-    }
+  const invalidateStakeData = useCallback(
+    async (options?: { includeSelectedPool?: boolean }) => {
+      if (!walletAddress) {
+        return;
+      }
 
-    const tasks: Array<Promise<unknown>> = [
-      utils.stake.balance.invalidate({ address: walletAddress }),
-      utils.stake.poolsByAuthority.invalidate({ stakingAuthority: walletAddress }),
-    ];
+      const tasks: Array<Promise<unknown>> = [
+        utils.stake.balance.invalidate({ address: walletAddress }),
+        utils.stake.poolsByAuthority.invalidate({
+          stakingAuthority: walletAddress,
+        }),
+      ];
 
-    if (options?.includeSelectedPool && unstakeAccount) {
-      tasks.push(utils.stake.pool.invalidate({ address: unstakeAccount }));
-    }
+      if (options?.includeSelectedPool && unstakeAccount) {
+        tasks.push(utils.stake.pool.invalidate({ address: unstakeAccount }));
+      }
 
-    await Promise.all(tasks);
-  }, [utils, walletAddress, unstakeAccount]);
+      await Promise.all(tasks);
+    },
+    [utils, walletAddress, unstakeAccount]
+  );
 
-  const prepareStakeTransaction = trpc.stake.prepareStakeTransaction.useMutation();
-  const prepareDeactivateStakeTransaction = trpc.stake.prepareDeactivateStakeTransaction.useMutation();
-  const prepareWithdrawStakeTransaction = trpc.stake.prepareWithdrawStakeTransaction.useMutation();
-  const prepareMergeStakeTransaction = trpc.stake.prepareMergeStakeTransaction.useMutation();
+  const prepareStakeTransaction =
+    trpc.stake.prepareStakeTransaction.useMutation();
+  const prepareDeactivateStakeTransaction =
+    trpc.stake.prepareDeactivateStakeTransaction.useMutation();
+  const prepareWithdrawStakeTransaction =
+    trpc.stake.prepareWithdrawStakeTransaction.useMutation();
+  const prepareMergeStakeTransaction =
+    trpc.stake.prepareMergeStakeTransaction.useMutation();
 
-  const sendSignedTransaction = useCallback(async (signedTransaction: Transaction) => {
-    const serializedTransaction = signedTransaction.serialize();
-    const signature = await connection.sendRawTransaction(serializedTransaction, {
-      skipPreflight: false,
-      preflightCommitment: "confirmed",
-    });
-
-    const blockhashInfo = signedTransaction.recentBlockhash && signedTransaction.lastValidBlockHeight
-      ? {
-          blockhash: signedTransaction.recentBlockhash,
-          lastValidBlockHeight: signedTransaction.lastValidBlockHeight,
+  const sendSignedTransaction = useCallback(
+    async (signedTransaction: Transaction) => {
+      const serializedTransaction = signedTransaction.serialize();
+      const signature = await connection.sendRawTransaction(
+        serializedTransaction,
+        {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
         }
-      : await connection.getLatestBlockhash();
+      );
 
-    await connection.confirmTransaction(
-      {
-        signature,
-        blockhash: blockhashInfo.blockhash,
-        lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
-      },
-      "confirmed"
-    );
+      const blockhashInfo =
+        signedTransaction.recentBlockhash &&
+        signedTransaction.lastValidBlockHeight
+          ? {
+              blockhash: signedTransaction.recentBlockhash,
+              lastValidBlockHeight: signedTransaction.lastValidBlockHeight,
+            }
+          : await connection.getLatestBlockhash();
 
-    return signature;
-  }, [connection]);
+      await connection.confirmTransaction(
+        {
+          signature,
+          blockhash: blockhashInfo.blockhash,
+          lastValidBlockHeight: blockhashInfo.lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+
+      return signature;
+    },
+    [connection]
+  );
 
   const tabs: Array<{ id: StakeTab; label: string }> = [
     { id: "stake", label: t("ui.stake") },
@@ -155,7 +183,10 @@ export default function StakeWidget() {
     { id: "merge", label: t("ui.merge") || "Merge" },
   ];
 
-  const normalizedAmount = useMemo(() => normalizeAmountInput(amount), [amount]);
+  const normalizedAmount = useMemo(
+    () => normalizeAmountInput(amount),
+    [amount]
+  );
   const numericAmount = useMemo(() => {
     if (!normalizedAmount) {
       return 0;
@@ -215,19 +246,19 @@ export default function StakeWidget() {
     const stakeAmount = numericAmount;
     if (stakeAmount < minStakeAmount) {
       setTransactionStatus({
-        type: 'error',
+        type: "error",
         message: `Minimum stake amount is ${formatNumber(minStakeAmount, {
           minimumFractionDigits: 0,
           maximumFractionDigits: 4,
-        })} SOL`
+        })} SOL`,
       });
       return;
     }
 
     if (stakeAmount > balance - 0.01) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Insufficient balance (leave some SOL for fees)'
+        type: "error",
+        message: "Insufficient balance (leave some SOL for fees)",
       });
       return;
     }
@@ -249,7 +280,9 @@ export default function StakeWidget() {
         return;
       }
 
-      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const transaction = Transaction.from(
+        Buffer.from(preparation.transaction, "base64")
+      );
       const signedTransaction = await signTransaction(transaction);
 
       const signature = await sendSignedTransaction(signedTransaction);
@@ -267,8 +300,9 @@ export default function StakeWidget() {
       void invalidateStakeData();
     } catch (error) {
       setTransactionStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       });
     } finally {
       setIsProcessing(false);
@@ -279,16 +313,16 @@ export default function StakeWidget() {
   const handleDeactivate = async () => {
     if (!connected || !publicKey || !signTransaction) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Wallet not connected'
+        type: "error",
+        message: "Wallet not connected",
       });
       return;
     }
 
     if (!unstakeAccount) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Please select a stake account to deactivate'
+        type: "error",
+        message: "Please select a stake account to deactivate",
       });
       return;
     }
@@ -297,19 +331,22 @@ export default function StakeWidget() {
 
     if (!isValidSolAmount(normalizedAmount) || unstakeAmount <= 0) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Enter a valid amount to deactivate'
+        type: "error",
+        message: "Enter a valid amount to deactivate",
       });
       return;
     }
 
     if (unstakeAmount > delegatedStake) {
       setTransactionStatus({
-        type: 'error',
-        message: `Amount exceeds delegated stake (${formatNumber(delegatedStake, {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 9,
-        })} SOL)`,
+        type: "error",
+        message: `Amount exceeds delegated stake (${formatNumber(
+          delegatedStake,
+          {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 9,
+          }
+        )} SOL)`,
       });
       return;
     }
@@ -327,12 +364,15 @@ export default function StakeWidget() {
       if (!preparation.success) {
         setTransactionStatus({
           type: "error",
-          message: preparation.error ?? "Failed to prepare deactivate transaction",
+          message:
+            preparation.error ?? "Failed to prepare deactivate transaction",
         });
         return;
       }
 
-      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const transaction = Transaction.from(
+        Buffer.from(preparation.transaction, "base64")
+      );
       const signedTransaction = await signTransaction(transaction);
 
       const signature = await sendSignedTransaction(signedTransaction);
@@ -353,8 +393,9 @@ export default function StakeWidget() {
       void invalidateStakeData({ includeSelectedPool: true });
     } catch (error) {
       setTransactionStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       });
     } finally {
       setIsProcessing(false);
@@ -365,24 +406,24 @@ export default function StakeWidget() {
   const handleWithdraw = async () => {
     if (!connected || !publicKey || !signTransaction) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Wallet not connected'
+        type: "error",
+        message: "Wallet not connected",
       });
       return;
     }
 
     if (!unstakeAccount) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Please select a stake account to withdraw from'
+        type: "error",
+        message: "Please select a stake account to withdraw from",
       });
       return;
     }
 
     if (withdrawableAmount <= 0) {
       setTransactionStatus({
-        type: 'error',
-        message: 'No inactive balance available to withdraw yet',
+        type: "error",
+        message: "No inactive balance available to withdraw yet",
       });
       return;
     }
@@ -399,12 +440,15 @@ export default function StakeWidget() {
       if (!preparation.success) {
         setTransactionStatus({
           type: "error",
-          message: preparation.error ?? "Failed to prepare withdraw transaction",
+          message:
+            preparation.error ?? "Failed to prepare withdraw transaction",
         });
         return;
       }
 
-      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const transaction = Transaction.from(
+        Buffer.from(preparation.transaction, "base64")
+      );
       const signedTransaction = await signTransaction(transaction);
 
       const signature = await sendSignedTransaction(signedTransaction);
@@ -425,8 +469,9 @@ export default function StakeWidget() {
       void invalidateStakeData({ includeSelectedPool: true });
     } catch (error) {
       setTransactionStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       });
     } finally {
       setIsProcessing(false);
@@ -437,16 +482,16 @@ export default function StakeWidget() {
   const handleMerge = async () => {
     if (!connected || !publicKey || !signTransaction) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Wallet not connected'
+        type: "error",
+        message: "Wallet not connected",
       });
       return;
     }
 
     if (!mergeSource || !mergeDestination) {
       setTransactionStatus({
-        type: 'error',
-        message: 'Please select a source and destination account'
+        type: "error",
+        message: "Please select a source and destination account",
       });
       return;
     }
@@ -469,7 +514,9 @@ export default function StakeWidget() {
         return;
       }
 
-      const transaction = Transaction.from(Buffer.from(preparation.transaction, "base64"));
+      const transaction = Transaction.from(
+        Buffer.from(preparation.transaction, "base64")
+      );
       const signedTransaction = await signTransaction(transaction);
 
       const signature = await sendSignedTransaction(signedTransaction);
@@ -489,34 +536,38 @@ export default function StakeWidget() {
       void invalidateStakeData();
     } catch (error) {
       setTransactionStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       });
     } finally {
       setIsProcessing(false);
     }
-
   };
 
-  const canStakeAction = connected &&
+  const canStakeAction =
+    connected &&
     isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
     !isBalanceLoading &&
     numericAmount <= balance - 0.01;
 
-  const selectedSourceAccount = stakeAccounts?.find((account) => account.address === mergeSource);
-  const selectedDestinationAccount = stakeAccounts?.find((account) => account.address === mergeDestination);
+  const selectedSourceAccount = stakeAccounts?.find(
+    (account) => account.address === mergeSource
+  );
+  const selectedDestinationAccount = stakeAccounts?.find(
+    (account) => account.address === mergeDestination
+  );
 
   const hasMergeSelection = Boolean(
-    mergeSource &&
-    mergeDestination &&
-    mergeSource !== mergeDestination
+    mergeSource && mergeDestination && mergeSource !== mergeDestination
   );
 
   const shareWithdrawAuthority = Boolean(
     selectedSourceAccount &&
     selectedDestinationAccount &&
-    selectedSourceAccount.withdrawAuthority === selectedDestinationAccount.withdrawAuthority
+    selectedSourceAccount.withdrawAuthority ===
+      selectedDestinationAccount.withdrawAuthority
   );
 
   const canMergeAction =
@@ -526,7 +577,8 @@ export default function StakeWidget() {
     hasMergeSelection &&
     shareWithdrawAuthority;
 
-  const canDeactivateAction = connected &&
+  const canDeactivateAction =
+    connected &&
     isValidSolAmount(normalizedAmount) &&
     !isProcessing &&
     !isBalanceLoading &&
@@ -534,21 +586,24 @@ export default function StakeWidget() {
     numericAmount > 0 &&
     numericAmount <= delegatedStake;
 
-  const canWithdrawAction = connected &&
+  const canWithdrawAction =
+    connected &&
     !isProcessing &&
     !isBalanceLoading &&
     !!unstakeAccount &&
     withdrawableAmount > 0;
 
-  const stakeAccountSummary = stakeAccount ? {
-    totalBalance: stakeAccount.amountStaked,
-    delegatedStake,
-    withdrawableAmount,
-    activeStake: activeStakeAmount,
-    inactiveStake: inactiveStakeAmount,
-    status: activationState ?? "unknown",
-    rentExemptReserve,
-  } : undefined;
+  const stakeAccountSummary = stakeAccount
+    ? {
+        totalBalance: stakeAccount.amountStaked,
+        delegatedStake,
+        withdrawableAmount,
+        activeStake: activeStakeAmount,
+        inactiveStake: inactiveStakeAmount,
+        status: activationState ?? "unknown",
+        rentExemptReserve,
+      }
+    : undefined;
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
@@ -581,8 +636,8 @@ export default function StakeWidget() {
 
   return (
     <div className="wrapper flex items-center justify-center w-full">
-      <div className="w-[550px] rounded-2xl flex flex-col overflow-hidden border border-border">
-        <div className="rounded-t-[15px] flex items-center">
+      <div className="w-[550px] flex flex-col overflow-hidden border border-border">
+        <div className="flex items-center">
           {tabs.map(({ id, label }) => (
             <button
               key={id}

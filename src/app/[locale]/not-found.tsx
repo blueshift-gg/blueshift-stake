@@ -1,5 +1,7 @@
+"use client";
+
 import { Link } from "@/i18n/navigation";
-import Button from "@/components/Button/Button";
+import { Button } from "@blueshift-gg/ui-components";
 
 export default function NotFound() {
   return (
@@ -13,7 +15,7 @@ export default function NotFound() {
         </p>
       </div>
       <Link href="/">
-        <Button icon="ArrowLeft" label="Back to Home" />
+        <Button icon={{ name: "ArrowLeft" }} label="Back to Home" />
       </Link>
     </div>
   );

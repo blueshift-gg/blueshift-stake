@@ -1,20 +1,23 @@
 import React, { useCallback, useState } from "react";
-import Button from "../Button/Button";
+import { Button } from "@blueshift-gg/ui-components";
 import DecryptedText from "../HeadingReveal/DecryptText";
 import { motion } from "motion/react";
 import { anticipate } from "motion";
 import Icon from "../Icon/Icon";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import classNames from "classnames";
 
 interface WalletButtonProps {
   disabled?: boolean;
   isLoading?: boolean;
+  className?: string;
 }
 
 export default function WalletMultiButton({
   disabled = false,
   isLoading = false,
+  className = "",
 }: WalletButtonProps) {
   const [isHoveringLocal, setIsHoveringLocal] = useState<boolean>(false);
   const { publicKey, disconnect, connected, connecting } = useWallet();
@@ -44,15 +47,15 @@ export default function WalletMultiButton({
     <div
       onMouseEnter={() => setIsHoveringLocal(true)}
       onMouseLeave={() => setIsHoveringLocal(false)}
-      className="relative"
+      className="relative w-full"
     >
       <Button
         disabled={disabled || isLoading || connecting}
         label={buttonLabel}
-        icon="Wallet"
+        icon={{ name: "Wallet" }}
         variant="primary"
-        className="overflow-hidden"
         onClick={handleClick}
+        className={classNames(className)}
       />
       {showDisconnectOverlay && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-white/5 backdrop-blur-[8px] rounded-xl">

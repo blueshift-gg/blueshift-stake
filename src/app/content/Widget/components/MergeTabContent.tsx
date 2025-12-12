@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import Button from "@/components/Button/Button";
+import { Button } from "@blueshift-gg/ui-components";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import { useTranslations } from "next-intl";
 import type { TransactionStatus } from "../types";
@@ -55,51 +55,71 @@ export function MergeTabContent({
       <div className="flex flex-col gap-y-4">
         <div className="flex flex-col gap-3">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeSource">
+            <label
+              className="block text-xs font-medium text-secondary mb-1"
+              htmlFor="mergeSource"
+            >
               {t("ui.mergeSource") || "Source Account"}
             </label>
             <select
               id="mergeSource"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
+              className="w-full px-3 py-2 border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
               value={mergeSource ?? ""}
               onChange={(event) => handleSourceChange(event.target.value)}
-              disabled={!connected || isBalanceLoading || isProcessing || !stakeAccounts?.length}
+              disabled={
+                !connected ||
+                isBalanceLoading ||
+                isProcessing ||
+                !stakeAccounts?.length
+              }
             >
               <option value="">Select Source</option>
-              {stakeAccounts?.filter((account) => {
-                if (mergeDestination) {
-                  return account.address !== mergeDestination;
-                }
-                return true;
-              }).map((account) => (
-                <option key={account.address} value={account.address}>
-                  {account.address}
-                </option>
-              ))}
+              {stakeAccounts
+                ?.filter((account) => {
+                  if (mergeDestination) {
+                    return account.address !== mergeDestination;
+                  }
+                  return true;
+                })
+                .map((account) => (
+                  <option key={account.address} value={account.address}>
+                    {account.address}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-xs font-medium text-secondary mb-1" htmlFor="mergeDestination">
+            <label
+              className="block text-xs font-medium text-secondary mb-1"
+              htmlFor="mergeDestination"
+            >
               {t("ui.mergeDestination") || "Destination Account"}
             </label>
             <select
               id="mergeDestination"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
+              className="w-full px-3 py-2 border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
               value={mergeDestination ?? ""}
               onChange={(event) => handleDestinationChange(event.target.value)}
-              disabled={!connected || isBalanceLoading || isProcessing || !stakeAccounts?.length}
+              disabled={
+                !connected ||
+                isBalanceLoading ||
+                isProcessing ||
+                !stakeAccounts?.length
+              }
             >
               <option value="">Select Destination</option>
-              {stakeAccounts?.filter((account) => {
-                if (mergeSource) {
-                  return account.address !== mergeSource;
-                }
-                return true;
-              }).map((account) => (
-                <option key={account.address} value={account.address}>
-                  {account.address}
-                </option>
-              ))}
+              {stakeAccounts
+                ?.filter((account) => {
+                  if (mergeSource) {
+                    return account.address !== mergeSource;
+                  }
+                  return true;
+                })
+                .map((account) => (
+                  <option key={account.address} value={account.address}>
+                    {account.address}
+                  </option>
+                ))}
             </select>
           </div>
         </div>
@@ -107,14 +127,14 @@ export function MergeTabContent({
       <div className="flex flex-col gap-y-5 items-center justify-center">
         <TransactionStatusNotice status={transactionStatus} />
         {!connected ? (
-          <WalletMultiButton isLoading={isBalanceLoading} />
+          <WalletMultiButton className="w-full" isLoading={isBalanceLoading} />
         ) : (
           <Button
             className="w-full relative"
             size="lg"
             label={t("ui.merge") || "Merge"}
             disabled={!canMergeAction}
-            isLoading={isProcessing}
+            loading={isProcessing}
             onClick={onMerge}
           />
         )}

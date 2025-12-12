@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@blueshift-gg/ui-components/theme.css";
+@source "../../node_modules/@blueshift-gg/ui-components";
 
 @theme inline {
   --color-background: #0b0e14;
