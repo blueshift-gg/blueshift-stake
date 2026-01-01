@@ -14,7 +14,7 @@
   "dependencies": {
     "@anza-xyz/solana-rpc-get-stake-activation": "^1.0.1",
     "@blueshift-gg/ui-components": "^0.1.50",
-    "@opennextjs/cloudflare": "^1.11.0",
+    "@opennextjs/cloudflare": "^1.14.7",
     "@solana-program/stake": "^0.4.0",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.28",
