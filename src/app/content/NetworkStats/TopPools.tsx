@@ -4,9 +4,8 @@ import { useTranslations } from "next-intl";
 
 import { rgbToRgba, shortenString } from "@/utils/utils";
 import { formatNumber } from "@/utils/format";
-import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
-import Icon from "@/components/Icon/Icon";
-import DecryptedText from "@/components/HeadingReveal/DecryptText";
+import { CrosshairCorners, DecryptText } from "@blueshift-gg/ui-components";
+import { Icon } from "@blueshift-gg/ui-components";
 import { useState } from "react";
 import { anticipate, motion } from "motion/react";
 import { trpc } from "@/utils/trpc";
@@ -187,7 +186,7 @@ const PoolCarousel = () => {
               <CrosshairCorners
                 className="!opacity-0 group-hover/pool:!opacity-100 transition-opacity duration-300"
                 size={6}
-                strokeWidth={1.5}
+                thickness={1.5}
                 corners={["bottom-right"]}
               />
               <div className="flex items-center gap-x-2.5">
@@ -203,7 +202,7 @@ const PoolCarousel = () => {
                   <CrosshairCorners
                     className="text-current"
                     size={4}
-                    strokeWidth={1}
+                    thickness={1}
                   />
                   {pool.icon ? (
                     <img
@@ -218,11 +217,11 @@ const PoolCarousel = () => {
                   <span className="font-mono text-sm text-tertiary flex items-center gap-x-1.5 h-6">
                     {pool.stakingAuthority ? (
                       <>
-                        <DecryptedText
+                        <DecryptText
                           isHovering={hoveredPool === pool.stakingAuthority}
                           text={shortenString(pool.stakingAuthority, 10)}
                         />
-                        <Icon name="ExternalLink" />
+                        <Icon name="External" />
                       </>
                     ) : null}
                   </span>

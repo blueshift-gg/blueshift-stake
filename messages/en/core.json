@@ -24,6 +24,7 @@
     "native": "Native",
     "liquid": "Liquid (Coming Soon)",
   "stakeAccountLabel": "Stake Account",
+    "selectAccount": "Select Account",
     "amount": "Amount",
     "max": "Max",
     "disclaimer": "By connecting your wallet, you agree to the",

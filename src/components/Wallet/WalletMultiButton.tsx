@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from "react";
-import { Button } from "@blueshift-gg/ui-components";
-import DecryptedText from "../HeadingReveal/DecryptText";
+import { Button, DecryptText } from "@blueshift-gg/ui-components";
 import { motion } from "motion/react";
 import { anticipate } from "motion";
-import Icon from "../Icon/Icon";
+import { Icon } from "@blueshift-gg/ui-components";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import classNames from "classnames";
@@ -54,8 +53,9 @@ export default function WalletMultiButton({
         label={buttonLabel}
         icon={{ name: "Wallet" }}
         variant="primary"
+        size="md"
         onClick={handleClick}
-        className={classNames(className)}
+        className={classNames(className, "min-w-[150px]")}
       />
       {showDisconnectOverlay && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-white/5 backdrop-blur-[8px] rounded-xl">
@@ -67,7 +67,7 @@ export default function WalletMultiButton({
             className="flex items-center gap-x-1.5 font-mono text-[15px] font-medium leading-none text-black"
           >
             <Icon name="Disconnect" />
-            <DecryptedText isHovering={isHoveringLocal} text="Disconnect" />
+            <DecryptText isHovering={isHoveringLocal} text="Disconnect" />
           </motion.span>
         </div>
       )}

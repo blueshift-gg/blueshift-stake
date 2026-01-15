@@ -1,9 +1,7 @@
 "use client";
 
-import Badge from "@/components/Badge/Badge";
-import { Button } from "@blueshift-gg/ui-components";
+import { Button, Icon, Badge } from "@blueshift-gg/ui-components";
 
-import Icon from "@/components/Icon/Icon";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import { formatCurrency, formatSol } from "@/utils/format";
 import { anticipate, motion } from "motion/react";
@@ -59,7 +57,7 @@ export function StakeTabContent({
         </div>
         <div className="flex flex-col gap-y-1">
           <div className="w-full flex items-center justify-between px-1.5">
-            <span className="font-medium">{t("ui.amount")}</span>
+            <span className="font-medium text-[15px]">{t("ui.amount")}</span>
             <div className="flex items-center gap-x-1.5 text-tertiary">
               <Icon name="WalletSmall" />
               <span className="text-sm font-mono">
@@ -97,9 +95,8 @@ export function StakeTabContent({
                 transition={{ duration: 0.5, ease: anticipate }}
               >
                 <Badge
-                  color="rgb(173,185,210)"
-                  className="font-mono ml-auto"
-                  value={`~${formatCurrency(numericAmount * solPrice)} USD`}
+                  label={`~${formatCurrency(numericAmount * solPrice)} USD`}
+                  className="font-mono ml-auto flex-shrink-0 text-[rgb(173,185,210)]"
                 />
               </motion.div>
             )}

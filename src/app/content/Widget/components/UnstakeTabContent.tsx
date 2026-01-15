@@ -1,8 +1,7 @@
 "use client";
 
-import Badge from "@/components/Badge/Badge";
-import { Button } from "@blueshift-gg/ui-components";
-import Icon from "@/components/Icon/Icon";
+import { Button, Dropdown, Badge } from "@blueshift-gg/ui-components";
+import { Icon } from "@blueshift-gg/ui-components";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import { formatCurrency, formatSol } from "@/utils/format";
 import { anticipate, motion } from "motion/react";
@@ -63,9 +62,15 @@ export function UnstakeTabContent({
 }: UnstakeTabContentProps) {
   const t = useTranslations();
 
-  const handleStakeAccountChange = (value: string) => {
-    onStakeAccountChange(value !== "" ? value : undefined);
+  const handleStakeAccountChange = (value: string | string[] | undefined) => {
+    onStakeAccountChange(Array.isArray(value) ? value[0] : value);
   };
+
+  const stakeAccountItems =
+    stakeAccounts?.map((account) => ({
+      label: account.address,
+      value: account.address,
+    })) || [];
 
   const delegatedStake = stakeAccountSummary?.delegatedStake ?? 0;
   const withdrawableNow = stakeAccountSummary?.withdrawableAmount ?? 0;
@@ -152,30 +157,27 @@ export function UnstakeTabContent({
             </span>
           </button>
         </div>
-        <div className="flex flex-col gap-y-2">
+        <div className="flex flex-col gap-y-1.5">
           <label
             htmlFor="unstakeSource"
-            className="text-sm font-medium text-primary"
+            className="font-medium text-primary text-[15px]"
           >
             {t("ui.stakeAccountLabel") || "Stake Account"}
           </label>
-          <select
-            id="unstakeSource"
-            className="w-full px-3 py-2  border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-            value={selectedStakeAccount ?? ""}
-            onChange={(event) => handleStakeAccountChange(event.target.value)}
-          >
-            <option value="">Select Account</option>
-            {stakeAccounts?.map((account) => (
-              <option key={account.address} value={account.address}>
-                {account.address}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            items={stakeAccountItems}
+            selectedItem={selectedStakeAccount}
+            handleChange={handleStakeAccountChange}
+            label={t("ui.selectAccount") || "Select Account"}
+            buttonClassName="font-mono"
+            size="md"
+            disabled={!stakeAccountItems.length}
+            menuClassName="w-full"
+          />
         </div>
         <div className="flex flex-col gap-y-1">
           <div className="w-full flex items-center justify-between px-1.5">
-            <span className="font-medium">{t("ui.amount")}</span>
+            <span className="font-medium text-[15px]">{t("ui.amount")}</span>
             <div className="flex items-center gap-x-1.5 text-tertiary">
               <Icon name="WalletSmall" />
               <span className="text-sm font-mono">
@@ -225,9 +227,8 @@ export function UnstakeTabContent({
                 transition={{ duration: 0.5, ease: anticipate }}
               >
                 <Badge
-                  color="rgb(173,185,210)"
-                  className="font-mono ml-auto"
-                  value={`~${formatCurrency(numericAmount * solPrice)} USD`}
+                  label={`~${formatCurrency(numericAmount * solPrice)} USD`}
+                  className="font-mono ml-auto flex-shrink-0 text-[rgb(173,185,210)]"
                 />
               </motion.div>
             )}

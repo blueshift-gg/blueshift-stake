@@ -1,6 +1,5 @@
 "use client";
-import Badge from "@/components/Badge/Badge";
-import Icon from "@/components/Icon/Icon";
+import { Icon, Badge } from "@blueshift-gg/ui-components";
 import { shortenString } from "@/utils/utils";
 import { formatNumber, formatPercent, formatSol } from "@/utils/format";
 import classNames from "classnames";
@@ -9,7 +8,6 @@ import { motion } from "motion/react";
 import { trpc } from "@/utils/trpc";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { VALIDATOR_VOTE_ACCOUNT } from "@/utils/solana";
-import Image from "next/image";
 
 const SLOT_INTERVAL_MS = 400;
 const MAX_SLOT_PROJECTION_DELTA = 64;
@@ -215,14 +213,14 @@ export default function NetworkStats() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Image
+                <img
                   src="/icons/blueshift.svg"
                   alt="Blueshift Icon"
                   className="relative z-20 w-6 h-6"
                 />
                 <div>{shortenString(validatorVoteAccount, 8)}</div>
                 <div className="group-hover/link:text-primary focus:outline-none h-4 w-4 text-tertiary/50 hover:text-primary transition">
-                  <Icon name="ExternalLink" />
+                  <Icon name="External" />
                 </div>
               </a>
             ) : (
@@ -248,9 +246,15 @@ export default function NetworkStats() {
             </span>
             {!isInitialValidatorLoad && !isValidatorError && (
               <Badge
-                color="rgb(153, 69, 255)"
-                value="SOL"
-                icon="/icons/sol.svg"
+                label="SOL"
+                icon={
+                  <img
+                    src="/icons/sol.svg"
+                    alt="SOL Icon"
+                    className="w-4 h-4"
+                  />
+                }
+                className="flex-shrink-0 text-[rgb(153,69,255)]"
               />
             )}
           </StatCard>
@@ -265,9 +269,8 @@ export default function NetworkStats() {
                   {nextLeaderCountdownLabel}
                 </span>
                 <Badge
-                  className="hidden sm:inline-flex ml-auto flex-shrink-0"
-                  color="rgb(173, 185, 210)"
-                  value={
+                  className="hidden sm:inline-flex ml-auto flex-shrink-0 text-[rgb(173,185,210)]"
+                  label={
                     nextScheduledSlot === null
                       ? "TBD"
                       : formatNumber(nextScheduledSlot)

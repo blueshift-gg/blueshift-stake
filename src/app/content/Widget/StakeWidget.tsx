@@ -1,5 +1,5 @@
 "use client";
-import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
+import { CrosshairCorners } from "@blueshift-gg/ui-components";
 import classNames from "classnames";
 import { anticipate, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -657,7 +657,7 @@ export default function StakeWidget() {
                   />
                   <CrosshairCorners
                     size={6}
-                    strokeWidth={1.5}
+                    thickness={1.5}
                     className="text-brand-primary"
                     corners={["bottom-right"]}
                   />

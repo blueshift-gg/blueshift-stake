@@ -12,8 +12,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@blueshift-gg/ui-components':
-        specifier: ^0.1.50
-        version: 0.1.50
+        specifier: ^0.1.54
+        version: 0.1.54
       '@opennextjs/cloudflare':
         specifier: ^1.11.0
         version: 1.14.3(next@15.3.6(@babel/core@7.28.5)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(wrangler@4.52.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
@@ -640,8 +640,8 @@ packages:
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
 
-  '@blueshift-gg/ui-components@0.1.50':
-    resolution: {integrity: sha512-okzWq13nJVkPGkUjv9toa7CQ8tsRnA/4qcc3op7+B03l70WxUxe2jaChmFtUWjWi3H+4uLCpjilk7DdL53az8Q==}
+  '@blueshift-gg/ui-components@0.1.54':
+    resolution: {integrity: sha512-WQU9O2ZxPvK7DTDa75mzWA0Et+JQ+d6tVYPwlA3k75o5XvTz+BI/aO/pNiggyjzb/e0D1QzT4Ws3eQaERAqTWw==}
 
   '@cloudflare/kv-asset-handler@0.4.1':
     resolution: {integrity: sha512-Nu8ahitGFFJztxUml9oD/DLb7Z28C8cd8F46IVQ7y5Btz575pvMY8AqZsXkX7Gds29eCKdMgIHjIvzskHgPSFg==}
@@ -6852,7 +6852,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@blueshift-gg/ui-components@0.1.50':
+  '@blueshift-gg/ui-components@0.1.54':
     dependencies:
       '@tailwindcss/postcss': 4.1.17
       classnames: 2.5.1

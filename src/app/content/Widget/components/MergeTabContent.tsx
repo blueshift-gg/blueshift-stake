@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@blueshift-gg/ui-components";
+import { Button, Dropdown } from "@blueshift-gg/ui-components";
 import WalletMultiButton from "@/components/Wallet/WalletMultiButton";
 import { useTranslations } from "next-intl";
 import type { TransactionStatus } from "../types";
@@ -42,85 +42,82 @@ export function MergeTabContent({
 }: MergeTabContentProps) {
   const t = useTranslations();
 
-  const handleSourceChange = (value: string) => {
-    onMergeSourceChange(value !== "" ? value : undefined);
+  const handleSourceChange = (value: string | string[] | undefined) => {
+    onMergeSourceChange(Array.isArray(value) ? value[0] : value);
   };
 
-  const handleDestinationChange = (value: string) => {
-    onMergeDestinationChange(value !== "" ? value : undefined);
+  const handleDestinationChange = (value: string | string[] | undefined) => {
+    onMergeDestinationChange(Array.isArray(value) ? value[0] : value);
   };
+
+  const sourceItems =
+    stakeAccounts
+      ?.filter((account) => {
+        if (mergeDestination) {
+          return account.address !== mergeDestination;
+        }
+        return true;
+      })
+      .map((account) => ({
+        label: account.address,
+        value: account.address,
+      })) || [];
+
+  const destinationItems =
+    stakeAccounts
+      ?.filter((account) => {
+        if (mergeSource) {
+          return account.address !== mergeSource;
+        }
+        return true;
+      })
+      .map((account) => ({
+        label: account.address,
+        value: account.address,
+      })) || [];
+
+  const isDisabled =
+    !connected || isBalanceLoading || isProcessing || !stakeAccounts?.length;
 
   return (
     <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
       <div className="flex flex-col gap-y-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex-1">
+        <div className="flex flex-col gap-y-5">
+          <div className="flex-1 flex flex-col gap-y-1.5">
             <label
-              className="block text-xs font-medium text-secondary mb-1"
+              className="block font-medium text-secondary text-[15px]"
               htmlFor="mergeSource"
             >
               {t("ui.mergeSource") || "Source Account"}
             </label>
-            <select
-              id="mergeSource"
-              className="w-full px-3 py-2 border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-              value={mergeSource ?? ""}
-              onChange={(event) => handleSourceChange(event.target.value)}
-              disabled={
-                !connected ||
-                isBalanceLoading ||
-                isProcessing ||
-                !stakeAccounts?.length
-              }
-            >
-              <option value="">Select Source</option>
-              {stakeAccounts
-                ?.filter((account) => {
-                  if (mergeDestination) {
-                    return account.address !== mergeDestination;
-                  }
-                  return true;
-                })
-                .map((account) => (
-                  <option key={account.address} value={account.address}>
-                    {account.address}
-                  </option>
-                ))}
-            </select>
+            <Dropdown
+              items={sourceItems}
+              selectedItem={mergeSource}
+              handleChange={handleSourceChange}
+              label={t("ui.selectSource") || "Select Source"}
+              disabled={isDisabled}
+              buttonClassName="font-mono"
+              size="md"
+              menuClassName="w-full"
+            />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 flex flex-col gap-y-1.5">
             <label
-              className="block text-xs font-medium text-secondary mb-1"
+              className="block font-medium text-secondary text-[15px]"
               htmlFor="mergeDestination"
             >
               {t("ui.mergeDestination") || "Destination Account"}
             </label>
-            <select
-              id="mergeDestination"
-              className="w-full px-3 py-2 border border-border bg-background-card/50 text-primary font-mono focus:outline-none"
-              value={mergeDestination ?? ""}
-              onChange={(event) => handleDestinationChange(event.target.value)}
-              disabled={
-                !connected ||
-                isBalanceLoading ||
-                isProcessing ||
-                !stakeAccounts?.length
-              }
-            >
-              <option value="">Select Destination</option>
-              {stakeAccounts
-                ?.filter((account) => {
-                  if (mergeSource) {
-                    return account.address !== mergeSource;
-                  }
-                  return true;
-                })
-                .map((account) => (
-                  <option key={account.address} value={account.address}>
-                    {account.address}
-                  </option>
-                ))}
-            </select>
+            <Dropdown
+              items={destinationItems}
+              selectedItem={mergeDestination}
+              handleChange={handleDestinationChange}
+              label={t("ui.selectDestination") || "Select Destination"}
+              disabled={isDisabled}
+              buttonClassName="font-mono"
+              size="md"
+              menuClassName="w-full"
+            />
           </div>
         </div>
       </div>
