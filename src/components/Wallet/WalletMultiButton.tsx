@@ -11,12 +11,14 @@ interface WalletButtonProps {
   disabled?: boolean;
   isLoading?: boolean;
   className?: string;
+  size?: "md" | "lg";
 }
 
 export default function WalletMultiButton({
   disabled = false,
   isLoading = false,
   className = "",
+  size = "md",
 }: WalletButtonProps) {
   const [isHoveringLocal, setIsHoveringLocal] = useState<boolean>(false);
   const { publicKey, disconnect, connected, connecting } = useWallet();
@@ -53,9 +55,9 @@ export default function WalletMultiButton({
         label={buttonLabel}
         icon={{ name: "Wallet" }}
         variant="primary"
-        size="md"
+        size={size}
         onClick={handleClick}
-        className={classNames(className, "min-w-[150px]")}
+        className={classNames(className, "min-w-[150px] pl-4!")}
       />
       {showDisconnectOverlay && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-white/5 backdrop-blur-[8px] rounded-xl">

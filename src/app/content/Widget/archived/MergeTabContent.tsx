@@ -80,7 +80,7 @@ export function MergeTabContent({
     !connected || isBalanceLoading || isProcessing || !stakeAccounts?.length;
 
   return (
-    <div className="px-4 py-6 md:px-6 md:py-8 bg-background-card/50 shadow-[inset_0px_0px_12px_rgba(26,30,38,0.2)] flex flex-col gap-y-9">
+    <>
       <div className="flex flex-col gap-y-4">
         <div className="flex flex-col gap-y-5">
           <div className="flex-1 flex flex-col gap-y-1.5">
@@ -140,6 +140,6 @@ export function MergeTabContent({
           <span className="text-brand-secondary"> {t("ui.terms")}</span>
         </span>
       </div>
-    </div>
+    </>
   );
 }
