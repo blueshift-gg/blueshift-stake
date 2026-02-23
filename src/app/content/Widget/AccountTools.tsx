@@ -5,7 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { TOP_VALIDATORS } from "@/utils/validators";
 import AccountCard from "./AccountCard";
 import Modal from "@/components/Modal";
-import { Badge, Button, Input, nova } from "@blueshift-gg/ui-components";
+import { Badge, Button, nova } from "@blueshift-gg/ui-components";
 import { motion } from "motion/react";
 import { useState } from "react";
 
@@ -13,7 +13,7 @@ import { useState } from "react";
 function useFakeStakeAccounts() {
   const helius = TOP_VALIDATORS[0];
   const jupiter = TOP_VALIDATORS[1];
-  const blueshift = TOP_VALIDATORS[22]; // Blueshift
+  const blueshift = TOP_VALIDATORS[14]; // Blueshift
   return [
     {
       validator: {
@@ -57,11 +57,6 @@ export default function AccountTools() {
   const stakeAccounts = useFakeStakeAccounts();
 
   const [isMigrateModalOpen, setIsMigrateModalOpen] = useState(false);
-  const [migrateAmount, setMigrateAmount] = useState(0);
-
-  const handleMigrateAmountChange = (value: string) => {
-    setMigrateAmount(Number(value));
-  };
 
   return (
     <div className="col-span-1 xl:col-span-4 px-4 py-6 xl:px-6 xl:py-7 h-full relative">
@@ -73,28 +68,17 @@ export default function AccountTools() {
           <div className="flex flex-col gap-y-6 px-3">
             <div className="flex items-center justify-center">
               <div className="w-[56px] h-[48px]" style={{ color: stakeAccounts[0].validator.color !== "" ? stakeAccounts[0].validator.color : "rgb(255,255,255)" }}>
-                <Badge crosshair={{ variant: "bordered" }} icon={<img src={`/icons/validators/${stakeAccounts[0].validator.icon}`} alt={stakeAccounts[0].validator.name} className="w-7" />} className="px-2.5! text-current!" />
+                <Badge crosshair={{ variant: "bordered" }} icon={<img src={`/icons/validators/${stakeAccounts[0].validator.icon}`} alt={stakeAccounts[0].validator.name} className="w-7" />} className="py-2.5! px-2.5! text-current!" />
               </div>
               <div className="flex relative w-20 h-px" style={{ color: stakeAccounts[0].validator.color !== "" ? stakeAccounts[0].validator.color : "rgb(255,255,255)" }}>
                 <div className="absolute left-0 w-full h-full bg-border-light"></div>
                 <motion.div className="absolute left-0 h-full bg-current" initial={{ width: 0, opacity: 0 }} animate={{ width: "100%", opacity: [1, 1, 1, 1, 0] }} transition={{ duration: 1.5, ease: nova, repeat: Infinity, repeatType: "loop", repeatDelay: 1 }}></motion.div>
               </div>
-              <div className="w-[56px] h-[48px]" style={{ color: stakeAccounts[0].validator.color !== "" ? stakeAccounts[1].validator.color : "rgb(255,255,255)" }}>
-                <Badge crosshair={{ variant: "bordered" }} icon={<img src={`/icons/validators/${stakeAccounts[1].validator.icon}`} alt={stakeAccounts[1].validator.name} className="w-7" />} className="px-2.5! text-current!" />
+              <div className="w-[56px] h-[48px]" style={{ color: stakeAccounts[0].validator.color !== "" ? stakeAccounts[2].validator.color : "rgb(255,255,255)" }}>
+                <Badge crosshair={{ variant: "bordered" }} icon={<img src={`/icons/validators/${stakeAccounts[2].validator.icon}`} alt={stakeAccounts[2].validator.name} className="w-7" />} className="py-2.5! px-2.5! text-current!" />
               </div>
             </div>
-            <p className="font-medium text-sm max-w-[300px] text-balance text-center mx-auto leading-[160%] text-shade-tertiary">Choose the amount you would like to
-              migrate to Blueshift</p>
-          </div>
-
-          <div className="px-3 w-full">
-            <Input type="value" placeholder="0.00" value={migrateAmount.toString()} inputClassName="text-left!" onChange={handleMigrateAmountChange}>
-              <div className="flex items-center gap-x-1">
-                <Button size="sm" label="1/2" crosshairProps={{ size: 0 }} variant="secondary" />
-                <Button size="sm" label="FULL" crosshairProps={{ size: 0 }} variant="secondary" />
-                <Button size="sm" label="CUSTOM" crosshairProps={{ size: 0 }} variant="secondary" />
-              </div>
-            </Input>
+            <p className="font-medium max-w-[300px] text-balance text-center mx-auto leading-[160%] text-shade-tertiary">You are migrating your stake of <span className="font-mono text-[15px] text-shade-primary font-medium">{stakeAccounts[0].totalStaked}</span> from <span className="font-medium text-shade-primary">{stakeAccounts[0].validator.name}</span> to <span className="font-medium text-shade-primary">{stakeAccounts[2].validator.name}</span></p>
           </div>
 
           <div className="w-full flex items-center justify-center border-t border-border bg-background/50 p-3 gap-x-2.5">
@@ -104,7 +88,7 @@ export default function AccountTools() {
         </div>
       </Modal>
 
-      <div className="absolute left-0 top-0 h-[calc(100%+96px)] w-px bg-border"></div>
+      <div className="absolute left-0 top-0 h-full w-px bg-border"></div>
       {!connected && (
         <div className="relative bg-card-foreground/10 w-full py-12 flex items-center justify-center flex-col gap-y-4">
           <div className="dashed-border"></div>

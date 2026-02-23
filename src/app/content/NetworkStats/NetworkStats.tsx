@@ -282,10 +282,10 @@ const StatCard = ({
   return (
     <div className={classNames("group/stat relative", className)}>
       <div className="p-5 xl:p-6 flex flex-col gap-y-4 border-border">
-        <div className="relative z-20 font-medium text-tertiary leading-none">{title}</div>
+        <div className="relative z-20 font-medium text-tertiary leading-none text-sm sm:text-base">{title}</div>
         <div
           className={classNames(
-            "flex items-center gap-x-2.5 text-lg sm:text-2xl xl:text-[26px] leading-[100%] font-medium text-primary",
+            "flex items-center gap-x-2.5 text-xl sm:text-2xl xl:text-[26px] leading-[100%] font-medium text-primary",
             useMonospace && "font-mono"
           )}
         >

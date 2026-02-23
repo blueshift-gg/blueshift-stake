@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 export default function Widgets() {
   const t = useTranslations("ui");
   return (
-    <div className="flex flex-col relative border-t border-border w-full wrapper pb-24">
+    <div className="flex flex-col relative border-t border-border w-full wrapper">
       <div className="absolute left-0 top-0 h-full w-px bg-border hidden xl:block"></div>
       <div className="absolute right-0 top-0 h-full w-px bg-border hidden xl:block"></div>
       <div className="hidden xl:grid xl:grid-cols-9 w-full bg-card-solid border-b border-border">
