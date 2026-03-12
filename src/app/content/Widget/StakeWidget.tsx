@@ -14,6 +14,7 @@ import type { TransactionStatus } from "./types";
 import { Tabs } from "@blueshift-gg/ui-components";
 import { NativeTab } from "./NativeTab";
 import { LiquidTab } from "./LiquidTab";
+import StakeProjection from "./StakeProjection";
 
 const EXPLORER_BASE_URL = (
   process.env.NEXT_PUBLIC_SOLANA_EXPLORER_BASE_URL ??
@@ -613,6 +614,9 @@ export default function StakeWidget() {
 
   return (
     <div className="col-span-1 xl:col-span-5 px-4 py-6 xl:px-6 xl:py-7">
+      {!connected ? (
+        <StakeProjection />
+      ) : (
       <div className="w-full flex flex-col overflow-hidden border border-border">
           <div className="bg-card-solid/50 w-full">
             <div className="p-4 flex items-center gap-x-1 w-full">
@@ -660,6 +664,7 @@ export default function StakeWidget() {
           />
         )}
       </div>
+      )}
     </div>
   );
 }
