@@ -1,20 +1,26 @@
 import NetworkStats from "@/app/content/NetworkStats/NetworkStats";
-import TopPools from "../content/NetworkStats/TopPools";
-import StakeWidget from "../content/Widget/StakeWidget";
+import AppreciationBanner from "@/components/AppreciationBanner";
+import Widgets from "@/components/Widgets";
 
 export default function Home() {
   return (
-    <div className="w-full relative flex flex-col gap-y-6 pb-24">
-      <div className="wrapper relative z-10">
-        <div className="absolute left-0 -top-[74px] w-px h-dvh bg-border"></div>
-        <div className="absolute right-0 -top-[74px] w-px h-dvh bg-border"></div>
-      </div>
-      <div className="flex flex-col gap-y-16 2xl:gap-y-24">
-        <div className="flex flex-col gap-y-4">
+    <div className="w-full relative flex flex-col gap-y-2">
+      <div className="flex flex-col gap-y-16 2xl:gap-y-24 border-b border-border">
+        <div className="flex flex-col">
           <NetworkStats />
-          <TopPools />
+          <div className="relative h-4 wrapper">
+            <div className="absolute left-0 top-0 h-full w-px bg-border hidden xl:block"></div>
+            <div className="absolute right-0 top-0 h-full w-px bg-border hidden xl:block"></div>
+          </div>
+          <div className="relative z-20">
+            <AppreciationBanner />
+          </div>
+          <div className="relative h-4 wrapper">
+            <div className="absolute left-0 top-0 h-full w-px bg-border hidden xl:block"></div>
+            <div className="absolute right-0 top-0 h-full w-px bg-border hidden xl:block"></div>
+          </div>
+          <Widgets />
         </div>
-        <StakeWidget />
       </div>
     </div>
   );

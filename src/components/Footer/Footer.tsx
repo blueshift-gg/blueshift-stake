@@ -1,5 +1,5 @@
 import { Link } from "@/i18n/navigation";
-import Icon from "../Icon/Icon";
+import { Icon } from "@blueshift-gg/ui-components";
 
 export default function Footer() {
   const year = new Date().getFullYear();

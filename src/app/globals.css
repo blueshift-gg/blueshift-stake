@@ -42,8 +42,7 @@ body {
 }
 
 .wrapper {
-  @apply max-w-6xl mx-auto w-full px-4 relative;
-  @apply md:px-6;
+  @apply max-w-[1200px] mx-auto w-full relative;
   @apply xl:px-0;
 }
 
@@ -72,20 +71,7 @@ body {
   pointer-events: none;
 }
 
-/* Infinite scroll animation */
-@keyframes infinite-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(calc(-400px * 2 - 0.5rem * 2));
-  }
-}
-
-.animate-infinite-scroll {
-  animation: infinite-scroll 40s linear infinite;
-}
-
-.animate-infinite-scroll:hover {
-  animation-play-state: paused;
+.dashed-border {
+  @apply absolute inset-0 pointer-events-none;
+  background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' stroke='%2323262E' stroke-width='2' stroke-dasharray='6%2c 14' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
 }

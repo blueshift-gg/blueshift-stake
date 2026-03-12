@@ -1,9 +1,5 @@
 "use client";
-import CrosshairCorners from "@/components/Crosshair/CrosshairCorners";
-import classNames from "classnames";
-import { anticipate, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { isValidSolAmount, getMinimumStakeAmount } from "@/utils/solana";
 import { trpc } from "@/utils/trpc";
@@ -14,10 +10,11 @@ import {
   formatNumber,
   normalizeAmountInput,
 } from "@/utils/format";
-import { StakeTabContent } from "./components/StakeTabContent";
-import { MergeTabContent } from "./components/MergeTabContent";
-import { UnstakeTabContent } from "./components/UnstakeTabContent";
-import type { TransactionStatus, StakeTab } from "./types";
+import type { TransactionStatus } from "./types";
+import { Tabs } from "@blueshift-gg/ui-components";
+import { NativeTab } from "./NativeTab";
+import { LiquidTab } from "./LiquidTab";
+import StakeProjection from "./StakeProjection";
 
 const EXPLORER_BASE_URL = (
   process.env.NEXT_PUBLIC_SOLANA_EXPLORER_BASE_URL ??
@@ -26,7 +23,7 @@ const EXPLORER_BASE_URL = (
 const EXPLORER_CLUSTER = process.env.NEXT_PUBLIC_SOLANA_EXPLORER_CLUSTER;
 
 export default function StakeWidget() {
-  const [selectedTab, setSelectedTab] = useState<StakeTab>("stake");
+  const [selectedTab, setSelectedTab] = useState<string>("native");
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>(
     {
       type: null,
@@ -40,7 +37,6 @@ export default function StakeWidget() {
     setTransactionStatus({ type: null, message: "", link: undefined });
   }, [setTransactionStatus]);
 
-  const t = useTranslations();
   const { publicKey, signTransaction, connected } = useWallet();
   const { connection } = useConnection();
   const walletAddress = useMemo(() => publicKey?.toBase58() ?? "", [publicKey]);
@@ -136,12 +132,12 @@ export default function StakeWidget() {
 
   const prepareStakeTransaction =
     trpc.stake.prepareStakeTransaction.useMutation();
-  const prepareDeactivateStakeTransaction =
-    trpc.stake.prepareDeactivateStakeTransaction.useMutation();
-  const prepareWithdrawStakeTransaction =
-    trpc.stake.prepareWithdrawStakeTransaction.useMutation();
-  const prepareMergeStakeTransaction =
-    trpc.stake.prepareMergeStakeTransaction.useMutation();
+  // const prepareDeactivateStakeTransaction =
+  //   trpc.stake.prepareDeactivateStakeTransaction.useMutation();
+  // const prepareWithdrawStakeTransaction =
+  //   trpc.stake.prepareWithdrawStakeTransaction.useMutation();
+  // const prepareMergeStakeTransaction =
+  //   trpc.stake.prepareMergeStakeTransaction.useMutation();
 
   const sendSignedTransaction = useCallback(
     async (signedTransaction: Transaction) => {
@@ -156,11 +152,11 @@ export default function StakeWidget() {
 
       const blockhashInfo =
         signedTransaction.recentBlockhash &&
-        signedTransaction.lastValidBlockHeight
+          signedTransaction.lastValidBlockHeight
           ? {
-              blockhash: signedTransaction.recentBlockhash,
-              lastValidBlockHeight: signedTransaction.lastValidBlockHeight,
-            }
+            blockhash: signedTransaction.recentBlockhash,
+            lastValidBlockHeight: signedTransaction.lastValidBlockHeight,
+          }
           : await connection.getLatestBlockhash();
 
       await connection.confirmTransaction(
@@ -176,12 +172,6 @@ export default function StakeWidget() {
     },
     [connection]
   );
-
-  const tabs: Array<{ id: StakeTab; label: string }> = [
-    { id: "stake", label: t("ui.stake") },
-    { id: "unstake", label: t("ui.unstake") || "Unstake" },
-    { id: "merge", label: t("ui.merge") || "Merge" },
-  ];
 
   const normalizedAmount = useMemo(
     () => normalizeAmountInput(amount),
@@ -210,21 +200,9 @@ export default function StakeWidget() {
 
   // Handle max button click
   const handleMaxClick = async () => {
-    if (selectedTab === "stake") {
-      // Leave some SOL for transaction fees
-      const maxStakeAmount = Math.max(0, balance - 0.01);
-      setAmount(formatAmountInput(maxStakeAmount, 4));
-    } else if (selectedTab === "unstake") {
-      if (activationState === "activating") {
-        setAmount(formatAmountInput(delegatedStake, 9));
-      } else if (activationState === "active") {
-        setAmount(formatAmountInput(activeStakeAmount, 9));
-      } else if (activationState === "inactive") {
-        setAmount(formatAmountInput(withdrawableAmount, 9));
-      } else {
-        setAmount("");
-      }
-    }
+    // Leave some SOL for transaction fees
+    const maxStakeAmount = Math.max(0, balance - 0.01);
+    setAmount(formatAmountInput(maxStakeAmount, 4));
   };
 
   // Handle amount input change
@@ -310,240 +288,240 @@ export default function StakeWidget() {
   };
 
   // Handle deactivate operation
-  const handleDeactivate = async () => {
-    if (!connected || !publicKey || !signTransaction) {
-      setTransactionStatus({
-        type: "error",
-        message: "Wallet not connected",
-      });
-      return;
-    }
+  // const handleDeactivate = async () => {
+  //   if (!connected || !publicKey || !signTransaction) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Wallet not connected",
+  //     });
+  //     return;
+  //   }
 
-    if (!unstakeAccount) {
-      setTransactionStatus({
-        type: "error",
-        message: "Please select a stake account to deactivate",
-      });
-      return;
-    }
+  //   if (!unstakeAccount) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Please select a stake account to deactivate",
+  //     });
+  //     return;
+  //   }
 
-    const unstakeAmount = numericAmount;
+  //   const unstakeAmount = numericAmount;
 
-    if (!isValidSolAmount(normalizedAmount) || unstakeAmount <= 0) {
-      setTransactionStatus({
-        type: "error",
-        message: "Enter a valid amount to deactivate",
-      });
-      return;
-    }
+  //   if (!isValidSolAmount(normalizedAmount) || unstakeAmount <= 0) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Enter a valid amount to deactivate",
+  //     });
+  //     return;
+  //   }
 
-    if (unstakeAmount > delegatedStake) {
-      setTransactionStatus({
-        type: "error",
-        message: `Amount exceeds delegated stake (${formatNumber(
-          delegatedStake,
-          {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 9,
-          }
-        )} SOL)`,
-      });
-      return;
-    }
+  //   if (unstakeAmount > delegatedStake) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: `Amount exceeds delegated stake (${formatNumber(
+  //         delegatedStake,
+  //         {
+  //           minimumFractionDigits: 0,
+  //           maximumFractionDigits: 9,
+  //         }
+  //       )} SOL)`,
+  //     });
+  //     return;
+  //   }
 
-    setIsProcessing(true);
-    clearTransactionStatus();
+  //   setIsProcessing(true);
+  //   clearTransactionStatus();
 
-    try {
-      const preparation = await prepareDeactivateStakeTransaction.mutateAsync({
-        walletAddress,
-        stakeAccountAddress: unstakeAccount,
-        withdrawAmount: unstakeAmount,
-      });
+  //   try {
+  //     const preparation = await prepareDeactivateStakeTransaction.mutateAsync({
+  //       walletAddress,
+  //       stakeAccountAddress: unstakeAccount,
+  //       withdrawAmount: unstakeAmount,
+  //     });
 
-      if (!preparation.success) {
-        setTransactionStatus({
-          type: "error",
-          message:
-            preparation.error ?? "Failed to prepare deactivate transaction",
-        });
-        return;
-      }
+  //     if (!preparation.success) {
+  //       setTransactionStatus({
+  //         type: "error",
+  //         message:
+  //           preparation.error ?? "Failed to prepare deactivate transaction",
+  //       });
+  //       return;
+  //     }
 
-      const transaction = Transaction.from(
-        Buffer.from(preparation.transaction, "base64")
-      );
-      const signedTransaction = await signTransaction(transaction);
+  //     const transaction = Transaction.from(
+  //       Buffer.from(preparation.transaction, "base64")
+  //     );
+  //     const signedTransaction = await signTransaction(transaction);
 
-      const signature = await sendSignedTransaction(signedTransaction);
-      const explorerUrl = buildExplorerUrl(signature);
+  //     const signature = await sendSignedTransaction(signedTransaction);
+  //     const explorerUrl = buildExplorerUrl(signature);
 
-      setTransactionStatus({
-        type: "success",
-        message: `Successfully deactivated ${formatNumber(unstakeAmount, {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 9,
-        })} SOL!`,
-        link: {
-          href: explorerUrl,
-          label: "View on Solana Explorer",
-        },
-      });
-      setAmount("");
-      void invalidateStakeData({ includeSelectedPool: true });
-    } catch (error) {
-      setTransactionStatus({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  //     setTransactionStatus({
+  //       type: "success",
+  //       message: `Successfully deactivated ${formatNumber(unstakeAmount, {
+  //         minimumFractionDigits: 0,
+  //         maximumFractionDigits: 9,
+  //       })} SOL!`,
+  //       link: {
+  //         href: explorerUrl,
+  //         label: "View on Solana Explorer",
+  //       },
+  //     });
+  //     setAmount("");
+  //     void invalidateStakeData({ includeSelectedPool: true });
+  //   } catch (error) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message:
+  //         error instanceof Error ? error.message : "Unknown error occurred",
+  //     });
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
 
   // Handle withdraw operation
-  const handleWithdraw = async () => {
-    if (!connected || !publicKey || !signTransaction) {
-      setTransactionStatus({
-        type: "error",
-        message: "Wallet not connected",
-      });
-      return;
-    }
+  // const handleWithdraw = async () => {
+  //   if (!connected || !publicKey || !signTransaction) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Wallet not connected",
+  //     });
+  //     return;
+  //   }
 
-    if (!unstakeAccount) {
-      setTransactionStatus({
-        type: "error",
-        message: "Please select a stake account to withdraw from",
-      });
-      return;
-    }
+  //   if (!unstakeAccount) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Please select a stake account to withdraw from",
+  //     });
+  //     return;
+  //   }
 
-    if (withdrawableAmount <= 0) {
-      setTransactionStatus({
-        type: "error",
-        message: "No inactive balance available to withdraw yet",
-      });
-      return;
-    }
+  //   if (withdrawableAmount <= 0) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "No inactive balance available to withdraw yet",
+  //     });
+  //     return;
+  //   }
 
-    setIsProcessing(true);
-    clearTransactionStatus();
+  //   setIsProcessing(true);
+  //   clearTransactionStatus();
 
-    try {
-      const preparation = await prepareWithdrawStakeTransaction.mutateAsync({
-        walletAddress,
-        stakeAccountAddress: unstakeAccount,
-      });
+  //   try {
+  //     const preparation = await prepareWithdrawStakeTransaction.mutateAsync({
+  //       walletAddress,
+  //       stakeAccountAddress: unstakeAccount,
+  //     });
 
-      if (!preparation.success) {
-        setTransactionStatus({
-          type: "error",
-          message:
-            preparation.error ?? "Failed to prepare withdraw transaction",
-        });
-        return;
-      }
+  //     if (!preparation.success) {
+  //       setTransactionStatus({
+  //         type: "error",
+  //         message:
+  //           preparation.error ?? "Failed to prepare withdraw transaction",
+  //       });
+  //       return;
+  //     }
 
-      const transaction = Transaction.from(
-        Buffer.from(preparation.transaction, "base64")
-      );
-      const signedTransaction = await signTransaction(transaction);
+  //     const transaction = Transaction.from(
+  //       Buffer.from(preparation.transaction, "base64")
+  //     );
+  //     const signedTransaction = await signTransaction(transaction);
 
-      const signature = await sendSignedTransaction(signedTransaction);
-      const explorerUrl = buildExplorerUrl(signature);
+  //     const signature = await sendSignedTransaction(signedTransaction);
+  //     const explorerUrl = buildExplorerUrl(signature);
 
-      setTransactionStatus({
-        type: "success",
-        message: `Successfully withdrew ${formatNumber(withdrawableAmount, {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 9,
-        })} SOL!`,
-        link: {
-          href: explorerUrl,
-          label: "View on Solana Explorer",
-        },
-      });
-      setAmount("");
-      void invalidateStakeData({ includeSelectedPool: true });
-    } catch (error) {
-      setTransactionStatus({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  //     setTransactionStatus({
+  //       type: "success",
+  //       message: `Successfully withdrew ${formatNumber(withdrawableAmount, {
+  //         minimumFractionDigits: 0,
+  //         maximumFractionDigits: 9,
+  //       })} SOL!`,
+  //       link: {
+  //         href: explorerUrl,
+  //         label: "View on Solana Explorer",
+  //       },
+  //     });
+  //     setAmount("");
+  //     void invalidateStakeData({ includeSelectedPool: true });
+  //   } catch (error) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message:
+  //         error instanceof Error ? error.message : "Unknown error occurred",
+  //     });
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
 
   // Handle merge operation
-  const handleMerge = async () => {
-    if (!connected || !publicKey || !signTransaction) {
-      setTransactionStatus({
-        type: "error",
-        message: "Wallet not connected",
-      });
-      return;
-    }
+  // const handleMerge = async () => {
+  //   if (!connected || !publicKey || !signTransaction) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Wallet not connected",
+  //     });
+  //     return;
+  //   }
 
-    if (!mergeSource || !mergeDestination) {
-      setTransactionStatus({
-        type: "error",
-        message: "Please select a source and destination account",
-      });
-      return;
-    }
+  //   if (!mergeSource || !mergeDestination) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message: "Please select a source and destination account",
+  //     });
+  //     return;
+  //   }
 
-    setIsProcessing(true);
-    clearTransactionStatus();
+  //   setIsProcessing(true);
+  //   clearTransactionStatus();
 
-    try {
-      const preparation = await prepareMergeStakeTransaction.mutateAsync({
-        walletAddress,
-        sourceStakeAddress: mergeSource,
-        destinationStakeAddress: mergeDestination,
-      });
+  //   try {
+  //     const preparation = await prepareMergeStakeTransaction.mutateAsync({
+  //       walletAddress,
+  //       sourceStakeAddress: mergeSource,
+  //       destinationStakeAddress: mergeDestination,
+  //     });
 
-      if (!preparation.success) {
-        setTransactionStatus({
-          type: "error",
-          message: preparation.error ?? "Failed to prepare merge transaction",
-        });
-        return;
-      }
+  //     if (!preparation.success) {
+  //       setTransactionStatus({
+  //         type: "error",
+  //         message: preparation.error ?? "Failed to prepare merge transaction",
+  //       });
+  //       return;
+  //     }
 
-      const transaction = Transaction.from(
-        Buffer.from(preparation.transaction, "base64")
-      );
-      const signedTransaction = await signTransaction(transaction);
+  //     const transaction = Transaction.from(
+  //       Buffer.from(preparation.transaction, "base64")
+  //     );
+  //     const signedTransaction = await signTransaction(transaction);
 
-      const signature = await sendSignedTransaction(signedTransaction);
-      const explorerUrl = buildExplorerUrl(signature);
+  //     const signature = await sendSignedTransaction(signedTransaction);
+  //     const explorerUrl = buildExplorerUrl(signature);
 
-      setTransactionStatus({
-        type: "success",
-        message: "Successfully merged stake accounts",
-        link: {
-          href: explorerUrl,
-          label: "View on Solana Explorer",
-        },
-      });
-      setAmount("");
-      setMergeSource(undefined);
-      setMergeDestination(undefined);
-      void invalidateStakeData();
-    } catch (error) {
-      setTransactionStatus({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  //     setTransactionStatus({
+  //       type: "success",
+  //       message: "Successfully merged stake accounts",
+  //       link: {
+  //         href: explorerUrl,
+  //         label: "View on Solana Explorer",
+  //       },
+  //     });
+  //     setAmount("");
+  //     setMergeSource(undefined);
+  //     setMergeDestination(undefined);
+  //     void invalidateStakeData();
+  //   } catch (error) {
+  //     setTransactionStatus({
+  //       type: "error",
+  //       message:
+  //         error instanceof Error ? error.message : "Unknown error occurred",
+  //     });
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
 
   const canStakeAction =
     connected &&
@@ -552,58 +530,58 @@ export default function StakeWidget() {
     !isBalanceLoading &&
     numericAmount <= balance - 0.01;
 
-  const selectedSourceAccount = stakeAccounts?.find(
-    (account) => account.address === mergeSource
-  );
-  const selectedDestinationAccount = stakeAccounts?.find(
-    (account) => account.address === mergeDestination
-  );
+  // const selectedSourceAccount = stakeAccounts?.find(
+  //   (account) => account.address === mergeSource
+  // );
+  // const selectedDestinationAccount = stakeAccounts?.find(
+  //   (account) => account.address === mergeDestination
+  // );
 
-  const hasMergeSelection = Boolean(
-    mergeSource && mergeDestination && mergeSource !== mergeDestination
-  );
+  // const hasMergeSelection = Boolean(
+  //   mergeSource && mergeDestination && mergeSource !== mergeDestination
+  // );
 
-  const shareWithdrawAuthority = Boolean(
-    selectedSourceAccount &&
-    selectedDestinationAccount &&
-    selectedSourceAccount.withdrawAuthority ===
-      selectedDestinationAccount.withdrawAuthority
-  );
+  // const shareWithdrawAuthority = Boolean(
+  //   selectedSourceAccount &&
+  //   selectedDestinationAccount &&
+  //   selectedSourceAccount.withdrawAuthority ===
+  //   selectedDestinationAccount.withdrawAuthority
+  // );
 
-  const canMergeAction =
-    connected &&
-    !isProcessing &&
-    !isBalanceLoading &&
-    hasMergeSelection &&
-    shareWithdrawAuthority;
+  // const canMergeAction =
+  //   connected &&
+  //   !isProcessing &&
+  //   !isBalanceLoading &&
+  //   hasMergeSelection &&
+  //   shareWithdrawAuthority;
 
-  const canDeactivateAction =
-    connected &&
-    isValidSolAmount(normalizedAmount) &&
-    !isProcessing &&
-    !isBalanceLoading &&
-    !!unstakeAccount &&
-    numericAmount > 0 &&
-    numericAmount <= delegatedStake;
+  // const canDeactivateAction =
+  //   connected &&
+  //   isValidSolAmount(normalizedAmount) &&
+  //   !isProcessing &&
+  //   !isBalanceLoading &&
+  //   !!unstakeAccount &&
+  //   numericAmount > 0 &&
+  //   numericAmount <= delegatedStake;
 
-  const canWithdrawAction =
-    connected &&
-    !isProcessing &&
-    !isBalanceLoading &&
-    !!unstakeAccount &&
-    withdrawableAmount > 0;
+  // const canWithdrawAction =
+  //   connected &&
+  //   !isProcessing &&
+  //   !isBalanceLoading &&
+  //   !!unstakeAccount &&
+  //   withdrawableAmount > 0;
 
-  const stakeAccountSummary = stakeAccount
-    ? {
-        totalBalance: stakeAccount.amountStaked,
-        delegatedStake,
-        withdrawableAmount,
-        activeStake: activeStakeAmount,
-        inactiveStake: inactiveStakeAmount,
-        status: activationState ?? "unknown",
-        rentExemptReserve,
-      }
-    : undefined;
+  // const stakeAccountSummary = stakeAccount
+  //   ? {
+  //     totalBalance: stakeAccount.amountStaked,
+  //     delegatedStake,
+  //     withdrawableAmount,
+  //     activeStake: activeStakeAmount,
+  //     inactiveStake: inactiveStakeAmount,
+  //     status: activationState ?? "unknown",
+  //     rentExemptReserve,
+  //   }
+  //   : undefined;
 
   // Clear transaction status after 5 seconds
   useEffect(() => {
@@ -635,92 +613,58 @@ export default function StakeWidget() {
   }, [unstakeAccount, withdrawableAmount]);
 
   return (
-    <div className="wrapper flex items-center justify-center w-full">
-      <div className="w-[550px] flex flex-col overflow-hidden border border-border">
-        <div className="flex items-center">
-          {tabs.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setSelectedTab(id)}
-              className={classNames(
-                "cursor-pointer hover:bg-background-card/50 transition px-6 py-3 relative font-mono text-tertiary",
-                selectedTab === id && "!text-brand-primary"
-              )}
-            >
-              {selectedTab === id && (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: [0, 0.15, 0, 0.1, 0, 0.06] }}
-                    transition={{ duration: 0.5, ease: anticipate }}
-                    className="absolute inset-0 bg-brand-primary"
-                  />
-                  <CrosshairCorners
-                    size={6}
-                    strokeWidth={1.5}
-                    className="text-brand-primary"
-                    corners={["bottom-right"]}
-                  />
-                </>
-              )}
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-        {selectedTab === "stake" && (
-          <StakeTabContent
-            connected={connected}
+    <div className="col-span-1 xl:col-span-5 px-4 py-6 xl:px-6 xl:py-7">
+      {!connected ? (
+        <StakeProjection />
+      ) : (
+      <div className="w-full flex flex-col overflow-hidden border border-border">
+          <div className="bg-card-solid/50 w-full">
+            <div className="p-4 flex items-center gap-x-1 w-full">
+              <Tabs
+                items={[
+                  { label: "Native", value: "native", selected: selectedTab === "native", onClick: () => setSelectedTab("native") },
+                  { label: "Liquid", value: "liquid", selected: selectedTab === "liquid", onClick: () => setSelectedTab("liquid") },
+                ]}
+                variant="segmented"
+                theme="primary"
+                className="w-full!"
+              />
+            </div>
+          </div>
+
+        {selectedTab === "native" ? (
+          <NativeTab
             balance={balance}
             amount={amount}
-            numericAmount={numericAmount}
-            solPrice={solPrice}
-            isBalanceLoading={isBalanceLoading}
-            isProcessing={isProcessing}
-            transactionStatus={transactionStatus}
             onAmountChange={handleAmountChange}
             onMaxClick={handleMaxClick}
-            onStake={handleStake}
+            connected={connected}
+            isBalanceLoading={isBalanceLoading}
+            numericAmount={numericAmount}
+            solPrice={solPrice}
+            transactionStatus={transactionStatus}
             canStakeAction={canStakeAction}
-          />
-        )}
-        {selectedTab === "merge" && (
-          <MergeTabContent
-            connected={connected}
-            stakeAccounts={stakeAccounts}
-            mergeSource={mergeSource}
-            mergeDestination={mergeDestination}
             isProcessing={isProcessing}
-            isBalanceLoading={isBalanceLoading}
-            canMergeAction={canMergeAction}
-            transactionStatus={transactionStatus}
-            onMerge={handleMerge}
-            onMergeSourceChange={setMergeSource}
-            onMergeDestinationChange={setMergeDestination}
+            onStake={handleStake}
           />
-        )}
-        {selectedTab === "unstake" && (
-          <UnstakeTabContent
-            connected={connected}
-            stakeAccounts={stakeAccounts}
-            selectedStakeAccount={unstakeAccount}
-            stakeAccountSummary={stakeAccountSummary}
-            activationStatus={activationState}
+        ) : (
+          <LiquidTab
+            balance={balance}
             amount={amount}
-            numericAmount={numericAmount}
-            solPrice={solPrice}
-            isBalanceLoading={isBalanceLoading}
-            isProcessing={isProcessing}
-            canDeactivateAction={canDeactivateAction}
-            canWithdrawAction={canWithdrawAction}
-            transactionStatus={transactionStatus}
-            onStakeAccountChange={setUnstakeAccount}
             onAmountChange={handleAmountChange}
             onMaxClick={handleMaxClick}
-            onDeactivate={handleDeactivate}
-            onWithdraw={handleWithdraw}
+            connected={connected}
+            isBalanceLoading={isBalanceLoading}
+            numericAmount={numericAmount}
+            solPrice={solPrice}
+            transactionStatus={transactionStatus}
+            canStakeAction={canStakeAction}
+            isProcessing={isProcessing}
+            onStake={handleStake}
           />
         )}
       </div>
+      )}
     </div>
   );
 }
