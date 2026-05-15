@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
@@ -15,7 +15,7 @@
   "dependencies": {
     "@anza-xyz/solana-rpc-get-stake-activation": "^1.0.1",
     "@blueshift-gg/ui-components": "^0.1.50",
-    "@opennextjs/cloudflare": "^1.11.0",
+    "@opennextjs/cloudflare": "1.19.10",
     "@solana-program/stake": "^0.4.0",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.28",
@@ -32,26 +32,25 @@
     "jose": "^6.0.11",
     "motion": "^12.23.3",
     "motion-plus": "^1.4.1",
-    "next": "15.3.6",
+    "next": "16.2.6",
     "next-intl": "^4.3.4",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "superjson": "^2.2.2",
     "usehooks-ts": "^3.1.1",
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.5",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "16.2.6",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "wrangler": "^4.43.0"
+    "wrangler": "^4.84.1"
   }
 }
